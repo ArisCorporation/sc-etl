@@ -1,0 +1,47 @@
+{
+  "name": "sc-etl",
+  "version": "0.1.0",
+  "description": "Star Citizen ETL pipeline for Directus",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "dev": "tsx src/index.ts",
+    "etl": "pnpm run dev"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArisCorporation/sc-etl.git"
+  },
+  "author": "Lucas Gruber",
+  "bugs": {
+    "url": "https://github.com/ArisCorporation/sc-etl/issues"
+  },
+  "homepage": "https://github.com/ArisCorporation/sc-etl#readme",
+  "volta": {
+    "node": "20.11.1"
+  },
+  "dependencies": {
+    "@directus/sdk": "^20.1.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "dotenv": "^16.4.5",
+    "fast-glob": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.5",
+    "rimraf": "^5.0.5",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.6.3"
+  }
+}

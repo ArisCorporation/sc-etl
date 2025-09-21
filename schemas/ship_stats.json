@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ship_variant_external_id", "stats"],
+  "properties": {
+    "ship_variant_external_id": { "type": "string", "minLength": 1 },
+    "stats": { "type": "object", "additionalProperties": true }
+  }
+}

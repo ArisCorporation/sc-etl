@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["external_id", "ship_variant_external_id", "code", "category"],
+  "properties": {
+    "external_id": { "type": "string", "minLength": 1 },
+    "ship_variant_external_id": { "type": "string", "minLength": 1 },
+    "code": { "type": "string", "minLength": 1 },
+    "category": { "type": "string", "minLength": 1 },
+    "position": { "type": "string" },
+    "size": { "type": "number", "minimum": 0 },
+    "gimballed": { "type": "boolean" },
+    "powered": { "type": "boolean" },
+    "seats": { "type": "integer", "minimum": 0 }
+  }
+}

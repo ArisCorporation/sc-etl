@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["item_external_id", "stats"],
+  "properties": {
+    "item_external_id": { "type": "string", "minLength": 1 },
+    "stats": { "type": "object", "additionalProperties": true },
+    "price_auec": { "type": "number", "minimum": 0 },
+    "availability": { "type": "string" }
+  }
+}

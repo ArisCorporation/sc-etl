@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output
+/dist/
+
+# Environment & local data
+.env
+.env.*
+/data/
+!/data/**/
+!/data/.gitkeep
+!/data/p4k/.gitkeep
+!/data/raw/.gitkeep
+!/data/normalized/.gitkeep
+
+/bins/
+!/bins/.gitkeep
+!/bins/unp4k/.gitkeep
+!/bins/scdatadumper/.gitkeep
+
+# Logs & misc
+*.log

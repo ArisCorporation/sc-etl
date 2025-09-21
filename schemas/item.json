@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["external_id", "name", "type"],
+  "properties": {
+    "external_id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "type": { "type": "string", "minLength": 1 },
+    "subtype": { "type": "string" },
+    "manufacturer_external_id": { "type": "string" },
+    "size": { "type": "number", "minimum": 0 },
+    "grade": { "type": "string" },
+    "class": { "type": "string" },
+    "description": { "type": "string" }
+  }
+}

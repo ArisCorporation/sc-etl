@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ship_variant_external_id", "item_external_id", "quantity"],
+  "properties": {
+    "ship_variant_external_id": { "type": "string", "minLength": 1 },
+    "item_external_id": { "type": "string", "minLength": 1 },
+    "quantity": { "type": "integer", "minimum": 0 },
+    "hardpoint_external_id": { "type": "string", "minLength": 1 },
+    "profile": { "type": "string", "minLength": 1 },
+    "livery": { "anyOf": [
+      { "type": "string", "minLength": 1 },
+      { "type": "null" }
+    ] }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["namespace", "key", "lang", "value"],
+  "properties": {
+    "namespace": { "type": "string", "minLength": 1 },
+    "key": { "type": "string", "minLength": 1 },
+    "lang": { "type": "string", "minLength": 2 },
+    "value": { "type": "string" }
+  }
+}
