@@ -7,14 +7,16 @@ node_modules/
 # Environment & local data
 .env
 .env.*
-/data/
-!/data/**/
+/data/raw/*
+/data/p4k/*
+/data/normalized/*
 !/data/.gitkeep
 !/data/p4k/.gitkeep
 !/data/raw/.gitkeep
 !/data/normalized/.gitkeep
 
-/bins/
+/bins/unp4k/*
+/bins/scdatadumper/*
 !/bins/.gitkeep
 !/bins/unp4k/.gitkeep
 !/bins/scdatadumper/.gitkeep
