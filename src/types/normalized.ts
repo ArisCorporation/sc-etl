@@ -13,7 +13,7 @@ export interface NormalizedShip {
   name: string;
   class: string;
   size?: string;
-  manufacturer_external_id: string;
+  manufacturer_code: string;
   description?: string;
 }
 
@@ -43,7 +43,7 @@ export interface NormalizedItem {
   type: string;
   subtype?: string;
   name: string;
-  manufacturer_external_id?: string;
+  manufacturer_code?: string;
   size?: number;
   grade?: string;
   class?: string;

@@ -8,7 +8,7 @@
     "name": { "type": "string", "minLength": 1 },
     "type": { "type": "string", "minLength": 1 },
     "subtype": { "type": "string" },
-    "manufacturer_external_id": { "type": "string" },
+    "manufacturer_code": { "type": "string" },
     "size": { "type": "number", "minimum": 0 },
     "grade": { "type": "string" },
     "class": { "type": "string" },

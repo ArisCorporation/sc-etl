@@ -18,7 +18,7 @@ WITH ranked AS (
       ORDER BY COALESCE(b.released, b.ingested) DESC, b.ingested DESC, is_data.id DESC
     ) AS rn
   FROM item_stats AS is_data
-  JOIN game_builds AS b ON b.id = is_data.build
+  JOIN builds AS b ON b.id = is_data.build
   JOIN items AS i ON i.id = is_data.item
   WHERE b.status = 'ingested'
 )
@@ -53,7 +53,7 @@ WITH ranked AS (
       ORDER BY COALESCE(b.released, b.ingested) DESC, b.ingested DESC, ss.id DESC
     ) AS rn
   FROM ship_stats AS ss
-  JOIN game_builds AS b ON b.id = ss.build
+  JOIN builds AS b ON b.id = ss.build
   JOIN ship_variants AS sv ON sv.id = ss.ship_variant
   WHERE b.status = 'ingested'
 )
@@ -93,7 +93,7 @@ WITH ranked AS (
       ORDER BY COALESCE(b.released, b.ingested) DESC, b.ingested DESC, ii.id DESC
     ) AS rn
   FROM installed_items AS ii
-  JOIN game_builds AS b ON b.id = ii.build
+  JOIN builds AS b ON b.id = ii.build
   JOIN ship_variants AS sv ON sv.id = ii.ship_variant
   JOIN items AS i ON i.id = ii.item
   LEFT JOIN hardpoints AS hp ON hp.id = ii.hardpoint

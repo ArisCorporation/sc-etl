@@ -11,11 +11,21 @@ import type {
   NormalizedManufacturer,
   NormalizedShip,
   NormalizedShipStat,
-  NormalizedShipVariant
+  NormalizedShipVariant,
+  NormalizedBundleV2,
+  NormalizedCompanyV2,
+  NormalizedExternalReference,
+  NormalizedHardpointV2,
+  NormalizedItemV2,
+  NormalizedShipV2,
+  NormalizedShipVariantV2,
+  ShipVariantStatsV2
 } from './types/index.js';
+import { loadTransformConfig } from './config/transform.js';
 import { pathExists, readJson, readJsonOrDefault, writeJson } from './utils/fs.js';
 import { log } from './utils/log.js';
 import {
+  type CanonicalVariantCode,
   buildHullKey,
   canonicalVariantName,
   cleanFamilyName,
@@ -201,7 +211,7 @@ interface RawItem {
     Type?: string;
     Size?: string | number;
     Grade?: string | number;
-    Manufacturer?: { Code?: string; Name?: string };
+    Manufacturer?: { Code?: string; Name?: string; Description?: string };
   };
 }
 
@@ -269,7 +279,7 @@ interface VariantLoadoutRecord {
 interface CanonicalVariantGroup {
   variantId: string;
   hullKey: string;
-  variantCode: string;
+  variantCode: CanonicalVariantCode;
   baseName: string;
   names: Set<string>;
   descriptions: Set<string>;
@@ -316,6 +326,58 @@ function sortLocales(entries: NormalizedLocaleEntry[]): NormalizedLocaleEntry[] 
   return [...entries].sort((a, b) =>
     `${a.namespace}:${a.key}:${a.lang}`.localeCompare(`${b.namespace}:${b.key}:${b.lang}`)
   );
+}
+
+type ExternalReferenceMap = Map<string, NormalizedExternalReference>;
+
+function addExternalRefs(
+  collection: Map<string, ExternalReferenceMap>,
+  key: string,
+  refs: NormalizedExternalReference[]
+) {
+  if (!refs.length) return;
+  let bucket = collection.get(key);
+  if (!bucket) {
+    bucket = new Map();
+    collection.set(key, bucket);
+  }
+  for (const ref of refs) {
+    if (!ref.source || !ref.id) continue;
+    const composite = `${ref.source}:${ref.id}`;
+    if (!bucket.has(composite)) {
+      bucket.set(composite, ref);
+    }
+  }
+}
+
+function refSetToArray(bucket: ExternalReferenceMap | undefined): NormalizedExternalReference[] {
+  if (!bucket) return [];
+  return [...bucket.values()];
+}
+
+function sortExternalRefs(refs: NormalizedExternalReference[]): NormalizedExternalReference[] {
+  return [...refs].sort((a, b) => {
+    const sourceCmp = a.source.localeCompare(b.source);
+    if (sourceCmp !== 0) return sourceCmp;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+function sanitizeManufacturerToken(value: string): string {
+  return value.replace(/[^a-z0-9]+/gi, '').toUpperCase();
+}
+
+function normalizeManufacturerCode(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const text = String(raw).trim();
+  if (!text) return undefined;
+  return sanitizeManufacturerToken(text);
+}
+
+function fallbackManufacturerCode(name?: string, fallback?: string): string {
+  const candidate = name ?? fallback ?? 'UNKNOWN';
+  // ASSUMPTION: Fallback manufacturer codes strip non-alphanumeric characters.
+  return sanitizeManufacturerToken(candidate);
 }
 
 function makeLocaleEntries(
@@ -397,6 +459,12 @@ function getItemBaseType(item: RawItem): string | undefined {
   return undefined;
 }
 
+function resolveItemTypeToken(item: RawItem): string | undefined {
+  const baseType = getItemBaseType(item);
+  if (!baseType) return undefined;
+  return normalizeTypeToken(baseType);
+}
+
 function isShipRelevantItem(item: RawItem): boolean {
   const classification = getItemClassification(item);
   if (classification) {
@@ -417,6 +485,15 @@ function isShipRelevantItem(item: RawItem): boolean {
   if (baseType.endsWith('CONTROLLER') && baseType !== 'DOORCONTROLLER' && baseType !== 'LIGHTCONTROLLER') return true;
 
   return false;
+}
+
+function isAllowedItem(item: RawItem, allowedTypes: Set<string>): boolean {
+  if (!allowedTypes.size) {
+    return isShipRelevantItem(item);
+  }
+  const token = resolveItemTypeToken(item);
+  if (!token) return false;
+  return allowedTypes.has(token);
 }
 
 function pickItemClassCandidate(segments: string[]): string | undefined {
@@ -713,6 +790,175 @@ function buildShipStatsFallback(groups: CanonicalVariantGroup[]): NormalizedShip
   return stats;
 }
 
+function mergeShipFlightStats(
+  target: ShipVariantStatsV2,
+  flight: Record<string, unknown> | undefined
+) {
+  if (!flight) return;
+  const perf = target.performance ?? (target.performance = {});
+  if (flight.ScmSpeed !== undefined) {
+    const scm = optionalNumber((flight as any).ScmSpeed);
+    if (scm !== undefined) perf.scm_speed = scm;
+  }
+  if ((flight as any).BoostSpeedForward !== undefined) {
+    const ab = optionalNumber((flight as any).BoostSpeedForward);
+    if (ab !== undefined) perf.afterburner_speed = ab;
+  }
+  const accel = (flight as any).Acceleration as Record<string, unknown> | undefined;
+  if (accel) {
+    const accels: Record<string, number> = {};
+    for (const [key, value] of Object.entries(accel)) {
+      const numeric = optionalNumber(value);
+      if (numeric !== undefined) {
+        accels[key.toLowerCase()] = numeric;
+      }
+    }
+    if (Object.keys(accels).length) {
+      perf.accelerations = { ...(perf.accelerations ?? {}), ...accels };
+    }
+  }
+  const pitch = optionalNumber((flight as any).Pitch);
+  if (pitch !== undefined) perf.pitch_rate = pitch;
+  const yaw = optionalNumber((flight as any).Yaw);
+  if (yaw !== undefined) perf.yaw_rate = yaw;
+  const roll = optionalNumber((flight as any).Roll);
+  if (roll !== undefined) perf.roll_rate = roll;
+}
+
+function mergeShipPropulsionStats(
+  target: ShipVariantStatsV2,
+  propulsion: Record<string, unknown> | undefined,
+  quantum: Record<string, unknown> | undefined
+) {
+  if (!propulsion && !quantum) return;
+  const profile = target.propulsion ?? (target.propulsion = {});
+  if (propulsion) {
+    const hydro = optionalNumber(propulsion.FuelCapacity ?? (propulsion as any).fuel_capacity);
+    if (hydro !== undefined) profile.hydrogen_capacity = hydro;
+    const thrust = (propulsion as any).ThrustCapacity as Record<string, unknown> | undefined;
+    if (thrust) {
+      const main = optionalNumber(thrust.Main);
+      if (main !== undefined) profile.main_thrusters = Math.round(main);
+      const maneuvering = optionalNumber(thrust.Maneuvering);
+      if (maneuvering !== undefined) profile.maneuver_thrusters = Math.round(maneuvering);
+    }
+    const fuelUsage = (propulsion as any).FuelUsage as Record<string, unknown> | undefined;
+    if (fuelUsage) {
+      const vt = optionalNumber(fuelUsage.Vtol);
+      if (vt !== undefined) {
+        profile.fuel_intakes = Math.max(profile.fuel_intakes ?? 0, Math.round(vt));
+      }
+    }
+    const intakeRate = optionalNumber(propulsion.FuelIntakeRate);
+    if (intakeRate !== undefined) {
+      profile.fuel_intakes = intakeRate;
+    }
+    const powerOutput = optionalNumber((propulsion as any).PowerOutput);
+    if (powerOutput !== undefined) {
+      profile.power_output = powerOutput;
+    }
+  }
+  if (quantum) {
+    const quantumCapacity = optionalNumber(quantum.FuelCapacity ?? (quantum as any).fuel_capacity);
+    if (quantumCapacity !== undefined) {
+      profile.quantum_capacity = quantumCapacity;
+    }
+  }
+}
+
+function mergeShipDefenceStats(
+  target: ShipVariantStatsV2,
+  ship: RawShip,
+  raw: Record<string, unknown> | undefined
+) {
+  const defence = target.defence ?? (target.defence = {});
+  const shieldSlots = optionalNumber((raw as any)?.shield_slots);
+  if (shieldSlots !== undefined) {
+    defence.shield_slots = shieldSlots;
+  }
+  if (ship.ShieldFaceType && defence.shield_slots === undefined) {
+    // TODO: translate ShieldFaceType into slot count once mapping is defined.
+  }
+}
+
+function buildShipVariantStatsV2(
+  variantId: string,
+  group: CanonicalVariantGroup | undefined,
+  rawStats: Record<string, unknown> | undefined
+): ShipVariantStatsV2 {
+  const stats: ShipVariantStatsV2 = {};
+
+  const baseRecord = group?.records.find((entry) => !entry.isEditionOnly) ?? group?.records[0];
+  const ship = baseRecord?.record.ship;
+
+  if (ship) {
+    const length = optionalNumber(ship.Length ?? (ship as any).length);
+    if (length !== undefined) stats.length = length;
+    const width = optionalNumber(ship.Width ?? (ship as any).width);
+    if (width !== undefined) stats.width = width;
+    const height = optionalNumber(ship.Height ?? (ship as any).height);
+    if (height !== undefined) stats.height = height;
+    const mass = optionalNumber(ship.Mass ?? (ship as any).mass);
+    if (mass !== undefined) stats.mass = mass;
+    const cargo = optionalNumber(ship.Cargo ?? (ship as any).cargo);
+    if (cargo !== undefined) stats.cargo_capacity = cargo;
+
+    const crewValue = optionalNumber(ship.Crew ?? (ship as any).crew);
+    if (crewValue !== undefined) {
+      stats.crew = { ...(stats.crew ?? {}), minimum: crewValue };
+    }
+
+    mergeShipFlightStats(stats, ship.FlightCharacteristics as Record<string, unknown> | undefined);
+    mergeShipPropulsionStats(
+      stats,
+      ship.Propulsion as Record<string, unknown> | undefined,
+      ship.QuantumTravel as Record<string, unknown> | undefined
+    );
+    mergeShipDefenceStats(stats, ship, rawStats);
+
+    if (ship.Insurance) {
+      stats.insurance = { ...(stats.insurance ?? {}), ...ship.Insurance };
+    }
+  }
+
+  if (rawStats) {
+    if (rawStats.dimensions && typeof rawStats.dimensions === 'object') {
+      const dims = rawStats.dimensions as Record<string, unknown>;
+      const length = optionalNumber(dims.length ?? dims.Length);
+      if (length !== undefined) stats.length = length;
+      const width = optionalNumber(dims.width ?? dims.Width);
+      if (width !== undefined) stats.width = width;
+      const height = optionalNumber(dims.height ?? dims.Height);
+      if (height !== undefined) stats.height = height;
+    }
+    const mass = optionalNumber(rawStats.mass);
+    if (mass !== undefined) stats.mass = mass;
+    const cargo = optionalNumber(rawStats.cargo);
+    if (cargo !== undefined) stats.cargo_capacity = cargo;
+    const crew = optionalNumber(rawStats.crew);
+    if (crew !== undefined) {
+      stats.crew = { ...(stats.crew ?? {}), minimum: crew };
+    }
+    mergeShipFlightStats(stats, rawStats.flight as Record<string, unknown> | undefined);
+    mergeShipPropulsionStats(
+      stats,
+      rawStats.propulsion as Record<string, unknown> | undefined,
+      rawStats.quantum as Record<string, unknown> | undefined
+    );
+    if (rawStats.insurance && typeof rawStats.insurance === 'object') {
+      stats.insurance = { ...(stats.insurance ?? {}), ...(rawStats.insurance as Record<string, unknown>) };
+    }
+
+    stats.raw = rawStats;
+  }
+
+  if (!Object.keys(stats).length && rawStats) {
+    stats.raw = rawStats;
+  }
+
+  return stats;
+}
+
 function buildItemStatsFallback(rawItems: RawItem[], itemIds: Set<string>): NormalizedItemStat[] {
   const stats: NormalizedItemStat[] = [];
   for (const item of rawItems) {
@@ -752,57 +998,94 @@ export async function transform(
 ): Promise<NormalizedDataBundle> {
   const rawDir = join(dataRoot, 'raw', channel, version);
   const normalizedDir = join(dataRoot, 'normalized', channel, version);
+  const transformConfig = loadTransformConfig();
 
   const rawManufacturers = await readJson<RawManufacturer[]>(join(rawDir, 'manufacturers.json'));
   const manufacturerMap = new Map<string, NormalizedManufacturer>();
-  for (const manufacturer of rawManufacturers) {
-    const manufacturerCode = optionalString(manufacturer.code) ?? optionalString((manufacturer as any).Code);
-    const manufacturerReference = optionalString(manufacturer.reference) ?? optionalString((manufacturer as any).Reference);
-    const manufacturerName = optionalString(manufacturer.name) ?? optionalString((manufacturer as any).Name);
-    const manufacturerIdCandidate = coalesce(
-      manufacturerCode,
-      manufacturer.id,
-      (manufacturer as any).ID,
-      manufacturerReference,
-      manufacturerName
-    );
+  const companyRefs = new Map<string, ExternalReferenceMap>();
+  const shipExternalRefs = new Map<string, ExternalReferenceMap>();
+  const shipPaints = new Map<string, Set<string>>();
+  const variantExternalRefs = new Map<string, ExternalReferenceMap>();
+  const variantThumbnails = new Map<string, string>();
+  const variantReleasePatch = new Map<string, string>();
+  const itemExternalRefs = new Map<string, ExternalReferenceMap>();
 
-    const externalId = asExternalId(manufacturerIdCandidate);
-
-    manufacturerMap.set(externalId, {
-      external_id: externalId,
-      code: manufacturerCode ?? externalId,
-      name: manufacturerName ?? manufacturerCode ?? externalId,
-      description:
-        optionalString(manufacturer.description) ?? optionalString((manufacturer as any).Description),
-      data_source: optionalString(manufacturer.data_source)
-    });
-  }
-
-  const ensureManufacturer = (
-    externalId: string,
-    source: 'ship' | 'item',
+  const registerManufacturer = (
+    codeInput: string | undefined,
+    source: 'raw' | 'ship' | 'item',
     context: string,
-    details: { code?: string; name?: string; description?: string } = {}
-  ) => {
-    if (manufacturerMap.has(externalId)) return;
-    const code = optionalString(details.code) ?? externalId;
-    const name = optionalString(details.name) ?? code;
+    details: { name?: string; description?: string; data_source?: string; externalRefs?: NormalizedExternalReference[] } = {}
+  ): string => {
+    let normalised = codeInput ? normalizeManufacturerCode(codeInput) : undefined;
+    if (!normalised && details.name) {
+      normalised = normalizeManufacturerCode(details.name);
+    }
+    if (!normalised) {
+      normalised = fallbackManufacturerCode(details.name, context);
+      if (source !== 'raw') {
+        log.warn('Derived manufacturer code from fallback', {
+          source,
+          context,
+          manufacturer: normalised
+        });
+      }
+    }
+
+    const name = optionalString(details.name) ?? normalised;
     const description = optionalString(details.description);
-    manufacturerMap.set(externalId, {
-      external_id: externalId,
-      code,
+    const dataSource = optionalString(details.data_source) ?? (source === 'raw' ? undefined : 'derived');
+
+    const existing = manufacturerMap.get(normalised);
+    if (existing) {
+      if (!existing.name && name) existing.name = name;
+      if (!existing.description && description) existing.description = description;
+      if (!existing.data_source && dataSource) existing.data_source = dataSource;
+    } else {
+      manufacturerMap.set(normalised, {
+        external_id: normalised,
+        code: normalised,
+        name,
+        description,
+        data_source: dataSource
+      });
+    }
+
+    const externalRefs = details.externalRefs ?? [];
+    if (!externalRefs.length && context) {
+      externalRefs.push({ source: `manufacturer:${source}`, id: context });
+    }
+    addExternalRefs(companyRefs, normalised, externalRefs);
+
+    return normalised;
+  };
+
+  for (const manufacturer of rawManufacturers) {
+    const codeCandidate = optionalString(manufacturer.code) ?? optionalString((manufacturer as any).Code);
+    const name = optionalString(manufacturer.name) ?? optionalString((manufacturer as any).Name);
+    const description =
+      optionalString(manufacturer.description) ?? optionalString((manufacturer as any).Description);
+    const reference = optionalString(manufacturer.reference) ?? optionalString((manufacturer as any).Reference);
+    const context =
+      codeCandidate ??
+      reference ??
+      optionalString(manufacturer.id)?.toString() ??
+      optionalString((manufacturer as any).ID)?.toString() ??
+      name ??
+      'UNKNOWN_MANUFACTURER';
+    const externalRefs: NormalizedExternalReference[] = [];
+    if (manufacturer.id !== undefined) {
+      externalRefs.push({ source: 'raw:manufacturers.id', id: String(manufacturer.id) });
+    }
+    if (reference) {
+      externalRefs.push({ source: 'raw:manufacturers.reference', id: reference });
+    }
+    registerManufacturer(codeCandidate ?? reference ?? context, 'raw', context, {
       name,
       description,
-      data_source: 'derived'
+      data_source: optionalString(manufacturer.data_source),
+      externalRefs
     });
-    log.warn('Referenced manufacturer missing from raw data; synthesizing entry', {
-      source,
-      context,
-      manufacturer: externalId,
-      name
-    });
-  };
+  }
 
   const shipRecords = await readShipRecords(rawDir);
   const hullMap = new Map<string, NormalizedShip>();
@@ -814,35 +1097,63 @@ export async function transform(
     const ship = record.ship;
     const rawShipId = record.externalId;
 
-    const manufacturerIdSource = coalesce(
+    const manufacturerCodeInput = coalesce<string | number | undefined>(
+      optionalString(ship.manufacturer?.code),
+      optionalString(ship.manufacturer?.Code),
+      optionalString((ship as any).Manufacturer?.Code),
       ship.manufacturer_id,
-      ship.manufacturer?.id,
-      optionalString(ship.manufacturer?.code) ?? optionalString(ship.manufacturer?.Code),
-      optionalString((ship as any).Manufacturer?.Code)
+      ship.manufacturer?.id
     );
-    if (!manufacturerIdSource) {
-      log.warn('Skipping ship without manufacturer reference', { ship: rawShipId });
-      continue;
+    const manufacturerName =
+      optionalString((ship as any).Manufacturer?.Name) ??
+      optionalString((ship as any).manufacturer?.Name);
+    const manufacturerDescription = optionalString((ship as any).Manufacturer?.Description);
+    const manufacturerExternalRefs: NormalizedExternalReference[] = [];
+    if (ship.manufacturer_id !== undefined) {
+      manufacturerExternalRefs.push({ source: 'raw:ships.manufacturer_id', id: String(ship.manufacturer_id) });
     }
-    const manufacturerExternalId = asExternalId(manufacturerIdSource);
-    ensureManufacturer(manufacturerExternalId, 'ship', rawShipId, {
-      code:
-        optionalString(ship.manufacturer?.code) ??
-        optionalString(ship.manufacturer?.Code) ??
-        optionalString((ship as any).Manufacturer?.Code),
-      name:
-        optionalString((ship as any).Manufacturer?.Name) ??
-        optionalString((ship as any).manufacturer?.Name)
-    });
+    if (ship.manufacturer?.id !== undefined) {
+      manufacturerExternalRefs.push({ source: 'raw:ships.manufacturer.id', id: String(ship.manufacturer.id) });
+    }
+    if (ship.manufacturer?.code) {
+      manufacturerExternalRefs.push({ source: 'raw:ships.manufacturer.code', id: ship.manufacturer.code });
+    }
+    if ((ship as any).Manufacturer?.Code) {
+      manufacturerExternalRefs.push({ source: 'raw:ships.Manufacturer.Code', id: String((ship as any).Manufacturer?.Code) });
+    }
+    const manufacturerCode = registerManufacturer(
+      manufacturerCodeInput !== undefined ? String(manufacturerCodeInput) : undefined,
+      'ship',
+      rawShipId,
+      {
+        name: manufacturerName,
+        description: manufacturerDescription,
+        externalRefs: manufacturerExternalRefs
+      }
+    );
 
     const displayName =
       optionalString(ship.name) ?? optionalString(ship.Name) ?? optionalString(ship.ClassName) ?? rawShipId;
     const classificationSource = optionalString(ship.ClassName) ?? displayName;
     const variantCode = extractVariantCode(`${displayName} ${classificationSource}`);
-    const familyName = cleanFamilyName(classificationSource, variantCode, manufacturerExternalId);
-    const hullKey = buildHullKey(manufacturerExternalId, familyName);
+    const familyName = cleanFamilyName(classificationSource, variantCode, manufacturerCode);
+    const hullKey = buildHullKey(manufacturerCode, familyName);
 
     shipIdToHullKey.set(rawShipId, hullKey);
+
+    const shipRefs: NormalizedExternalReference[] = [
+      { source: 'raw:ships.primary', id: rawShipId }
+    ];
+    if (ship.UUID && ship.UUID !== rawShipId) {
+      shipRefs.push({ source: 'raw:ships.UUID', id: String(ship.UUID) });
+    }
+    if (ship.ClassName) {
+      shipRefs.push({ source: 'raw:ships.ClassName', id: String(ship.ClassName) });
+    }
+    if (ship.Name && ship.Name !== ship.ClassName) {
+      shipRefs.push({ source: 'raw:ships.Name', id: String(ship.Name) });
+    }
+    addExternalRefs(shipExternalRefs, hullKey, shipRefs);
 
     const canonicalVariantId = toCanonicalVariantExtId(hullKey, variantCode);
     rawToCanonicalVariant.set(rawShipId, canonicalVariantId);
@@ -872,7 +1183,7 @@ export async function transform(
         name: hullDisplayName,
         class: classCandidate,
         size: sizeCandidate ?? undefined,
-        manufacturer_external_id: manufacturerExternalId,
+        manufacturer_code: manufacturerCode,
         description: descriptionCandidate
       });
     } else {
@@ -906,10 +1217,23 @@ export async function transform(
       variantId: canonicalVariantId,
       record,
       profile: editionInfo.editionCode,
-      livery: editionInfo.livery,
+      livery: editionInfo.livery ?? undefined,
       isEditionOnly: editionOnly
     };
     group.records.push(loadoutRecord);
+
+    addExternalRefs(variantExternalRefs, canonicalVariantId, [
+      { source: 'raw:ships.id', id: record.externalId }
+    ]);
+
+    if (editionInfo.livery) {
+      let paints = shipPaints.get(hullKey);
+      if (!paints) {
+        paints = new Set();
+        shipPaints.set(hullKey, paints);
+      }
+      paints.add(editionInfo.livery);
+    }
 
     if (!editionOnly && displayName) {
       group.names.add(displayName);
@@ -944,6 +1268,22 @@ export async function transform(
         group.descriptions.add(variant.description);
       }
     }
+
+    const variantRefs: NormalizedExternalReference[] = [
+      { source: 'raw:ship_variants.id', id: rawVariantId },
+      { source: 'raw:ship_variants.ship_id', id: String(variant.ship_id) }
+    ];
+    if (variant.variant_code) {
+      variantRefs.push({ source: 'raw:ship_variants.code', id: variant.variant_code });
+    }
+    addExternalRefs(variantExternalRefs, canonicalVariantId, variantRefs);
+
+    if (variant.thumbnail) {
+      variantThumbnails.set(canonicalVariantId, variant.thumbnail);
+    }
+    if ((variant as any).release_patch) {
+      variantReleasePatch.set(canonicalVariantId, String((variant as any).release_patch));
+    }
   }
 
   const shipVariants: NormalizedShipVariant[] = sortByExternalId(
@@ -973,6 +1313,8 @@ export async function transform(
   const rawItems = await readJson<RawItem[]>(join(rawDir, 'items.json'));
   const itemRelevance = new Map<string, boolean>();
   const normalizedItems: NormalizedItem[] = [];
+  const itemsV2Draft: NormalizedItemV2[] = [];
+  const itemsV2Index = new Map<string, NormalizedItemV2>();
 
   for (const item of rawItems) {
     const externalId = asExternalId(
@@ -986,13 +1328,30 @@ export async function transform(
       )
     );
 
-    const relevant = isShipRelevantItem(item);
+    const itemRefs: NormalizedExternalReference[] = [{ source: 'raw:items.primary', id: externalId }];
+    if (item.reference) {
+      itemRefs.push({ source: 'raw:items.reference', id: String(item.reference) });
+    }
+    if (item.className) {
+      itemRefs.push({ source: 'raw:items.className', id: String(item.className) });
+    }
+    if (item.itemName) {
+      itemRefs.push({ source: 'raw:items.itemName', id: String(item.itemName) });
+    }
+    if (item.stdItem?.UUID) {
+      itemRefs.push({ source: 'raw:items.stdItem.UUID', id: String(item.stdItem.UUID) });
+    }
+    if (item.stdItem?.Name) {
+      itemRefs.push({ source: 'raw:items.stdItem.Name', id: String(item.stdItem.Name) });
+    }
+    addExternalRefs(itemExternalRefs, externalId, itemRefs);
+
+    const relevant = isAllowedItem(item, transformConfig.allowedItemTypes);
     itemRelevance.set(externalId, relevant);
     if (!relevant) continue;
 
-    const baseType = optionalString(item.type) ??
-      (item.stdItem?.Type ? item.stdItem.Type.split('.')[0] : undefined) ??
-      'Unknown';
+    const baseType =
+      optionalString(item.type) ?? (item.stdItem?.Type ? item.stdItem.Type.split('.')[0] : undefined) ?? 'Unknown';
 
     const subtype =
       optionalString(item.subtype) ??
@@ -1008,43 +1367,79 @@ export async function transform(
       optionalString(item.itemName) ??
       `Item ${externalId}`;
 
-    const manufacturerIdCandidate = coalesce<string | number>(
-      item.manufacturer_id,
+    const manufacturerName = optionalString(item.stdItem?.Manufacturer?.Name);
+    const manufacturerCodeInput = coalesce<string | number | undefined>(
+      optionalString(item.stdItem?.Manufacturer?.Code),
       optionalString(item.manufacturer),
-      optionalString(item.stdItem?.Manufacturer?.Code)
+      item.manufacturer_id,
+      manufacturerName
     );
-    const manufacturerExternalId = manufacturerIdCandidate
-      ? asExternalId(manufacturerIdCandidate)
-      : undefined;
-    if (manufacturerExternalId) {
-      ensureManufacturer(manufacturerExternalId, 'item', externalId, {
-        code:
-          optionalString(item.stdItem?.Manufacturer?.Code) ??
-          optionalString(item.manufacturer),
-        name: optionalString(item.stdItem?.Manufacturer?.Name)
-      });
+    const manufacturerDescription = optionalString(item.stdItem?.Manufacturer?.Description);
+    const itemManufacturerRefs: NormalizedExternalReference[] = [];
+    if (item.manufacturer_id !== undefined) {
+      itemManufacturerRefs.push({ source: 'raw:items.manufacturer_id', id: String(item.manufacturer_id) });
     }
+    if (item.manufacturer) {
+      itemManufacturerRefs.push({ source: 'raw:items.manufacturer', id: String(item.manufacturer) });
+    }
+    if (item.stdItem?.Manufacturer?.Code) {
+      itemManufacturerRefs.push({ source: 'raw:items.stdItem.Manufacturer.Code', id: String(item.stdItem.Manufacturer.Code) });
+    }
+    const manufacturerCode = manufacturerCodeInput !== undefined
+      ? registerManufacturer(String(manufacturerCodeInput), 'item', externalId, {
+          name: manufacturerName,
+          description: manufacturerDescription,
+          externalRefs: itemManufacturerRefs
+        })
+      : undefined;
 
     const rawClass =
       optionalString(item.class) ??
       (item.stdItem?.Type ? item.stdItem.Type.split('.')[0] : undefined);
+
+    const sizeValue = optionalNumber(item.size ?? item.stdItem?.Size);
+    const gradeValue = optionalString(
+      item.grade ?? (typeof item.stdItem?.Grade === 'number' ? item.stdItem.Grade.toString() : item.stdItem?.Grade)
+    );
+    const normalizedClass = normalizeItemClass(rawClass);
+    const description = optionalString(item.description) ?? optionalString(item.stdItem?.Description);
 
     normalizedItems.push({
       external_id: externalId,
       type: baseType,
       subtype,
       name: resolvedName,
-      manufacturer_external_id: manufacturerExternalId,
-      size: optionalNumber(item.size ?? item.stdItem?.Size),
-      grade: optionalString(
-        item.grade ??
-          (typeof item.stdItem?.Grade === 'number'
-            ? item.stdItem.Grade.toString()
-            : item.stdItem?.Grade)
-      ),
-      class: normalizeItemClass(rawClass),
-      description: optionalString(item.description) ?? optionalString(item.stdItem?.Description)
+      manufacturer_code: manufacturerCode,
+      size: sizeValue,
+      grade: gradeValue,
+      class: normalizedClass,
+      description
     } satisfies NormalizedItem);
+
+    const statsSeed: Record<string, unknown> = {};
+    if (item.stdItem) statsSeed.std_item = item.stdItem;
+    const classification = (item as any)?.classification ?? (item as any)?.Classification;
+    if (classification !== undefined) statsSeed.classification = classification;
+    const tags = (item as any)?.tags ?? (item as any)?.Tags;
+    if (tags !== undefined) statsSeed.tags = tags;
+
+    const nextItem: NormalizedItemV2 = {
+      external_id: externalId,
+      name: resolvedName,
+      company_code: manufacturerCode,
+      type: normalizeTypeToken(baseType) ?? baseType.toUpperCase(),
+      subtype,
+      size: sizeValue,
+      grade: gradeValue,
+      class: normalizedClass,
+      description,
+      external_refs: [],
+      stats: statsSeed,
+      date_created: undefined // TODO: wire up item creation timestamp when source exposes it.
+    };
+
+    itemsV2Draft.push(nextItem);
+    itemsV2Index.set(externalId, nextItem);
   }
 
   const items: NormalizedItem[] = sortByExternalId(normalizedItems);
@@ -1127,6 +1522,21 @@ export async function transform(
           availability: optionalString(stat.availability)
         }))
     : buildItemStatsFallback(rawItems, itemIds);
+  const itemStatsMap = new Map<string, NormalizedItemStat>();
+  for (const entry of itemStats) {
+    itemStatsMap.set(entry.item_external_id, entry);
+  }
+  for (const [itemId, statEntry] of itemStatsMap.entries()) {
+    const draft = itemsV2Index.get(itemId);
+    if (!draft) continue;
+    draft.stats = { ...draft.stats, ...statEntry.stats };
+    if (statEntry.price_auec !== undefined) {
+      draft.stats.price_auec = statEntry.price_auec;
+    }
+    if (statEntry.availability !== undefined) {
+      draft.stats.availability = statEntry.availability;
+    }
+  }
 
   const shipStatsRaw = await readJsonOrDefault<RawShipStat[]>(join(rawDir, 'ship_stats.json'), []);
   const shipStats: NormalizedShipStat[] = shipStatsRaw.length
@@ -1145,6 +1555,10 @@ export async function transform(
         })
         .filter((entry): entry is NormalizedShipStat => Boolean(entry))
     : buildShipStatsFallback([...variantGroups.values()]);
+  const shipStatsMap = new Map<string, Record<string, unknown>>();
+  for (const entry of shipStats) {
+    shipStatsMap.set(entry.ship_variant_external_id, entry.stats);
+  }
 
   const hardpointIds = new Set(hardpoints.map((hp) => hp.external_id));
   let installedItems: NormalizedInstalledItem[];
@@ -1194,6 +1608,104 @@ export async function transform(
 
   const manufacturers = sortByExternalId([...manufacturerMap.values()]);
 
+  for (const [itemId, refs] of itemExternalRefs.entries()) {
+    const draft = itemsV2Index.get(itemId);
+    if (draft) {
+      draft.external_refs = refSetToArray(refs);
+    }
+  }
+
+  const companiesV2: NormalizedCompanyV2[] = manufacturers.map((manufacturer) => ({
+    code: manufacturer.code,
+    name: manufacturer.name,
+    external_refs: sortExternalRefs(refSetToArray(companyRefs.get(manufacturer.code)))
+  }));
+
+  const shipsV2: NormalizedShipV2[] = ships.map((ship) => {
+    const paints = shipPaints.get(ship.external_id);
+    return {
+      external_id: ship.external_id,
+      name: ship.name,
+      company_code: ship.manufacturer_code,
+      external_refs: sortExternalRefs(refSetToArray(shipExternalRefs.get(ship.external_id))),
+      paints: paints && paints.size ? [...paints].sort() : undefined
+    } satisfies NormalizedShipV2;
+  });
+
+  const hardpointsV2Collection = new Map<string, NormalizedHardpointV2[]>();
+  const hardpointsV2: NormalizedHardpointV2[] = hardpoints.map((hp) => {
+    const converted: NormalizedHardpointV2 = {
+      external_id: hp.external_id,
+      ship_variant_external: hp.ship_variant_external_id,
+      code: hp.code,
+      category: hp.category,
+      position: hp.position,
+      size: hp.size,
+      gimballed: hp.gimballed,
+      powered: hp.powered,
+      seats: hp.seats
+    };
+    if (!hardpointsV2Collection.has(converted.ship_variant_external)) {
+      hardpointsV2Collection.set(converted.ship_variant_external, []);
+    }
+    hardpointsV2Collection.get(converted.ship_variant_external)!.push(converted);
+    return converted;
+  });
+
+  for (const bucket of hardpointsV2Collection.values()) {
+    bucket.sort((a, b) => a.external_id.localeCompare(b.external_id));
+  }
+
+  const shipVariantsV2: NormalizedShipVariantV2[] = sortByExternalId(
+    shipVariants.map((variant) => {
+      const group = variantGroups.get(variant.external_id);
+      const refs = sortExternalRefs(refSetToArray(variantExternalRefs.get(variant.external_id)));
+      if (!refs.length) {
+        refs.push({ source: 'normalized:ship_variant', id: variant.external_id });
+      }
+      const statsPayload = buildShipVariantStatsV2(
+        variant.external_id,
+        group,
+        shipStatsMap.get(variant.external_id)
+      );
+      if (!transformConfig.hardpointsAsCollection) {
+        const hardpointBundle = hardpointsV2Collection.get(variant.external_id);
+        if (hardpointBundle && hardpointBundle.length) {
+          statsPayload.hardpoints = hardpointBundle;
+        }
+      }
+      const variantCode = group?.variantCode ?? extractVariantCode(variant.name ?? variant.external_id);
+      const fallbackBaseName = group?.baseName ?? variant.ship_external_id.replace(/_/g, ' ');
+      const fallbackName = canonicalVariantName(fallbackBaseName, variantCode);
+      return {
+        external_id: variant.external_id,
+        ship_external: variant.ship_external_id,
+        name: variant.name ?? fallbackName,
+        variant_code: variant.variant_code,
+        external_refs: refs,
+        thumbnail: variantThumbnails.get(variant.external_id),
+        release_patch: variantReleasePatch.get(variant.external_id),
+        stats: statsPayload,
+        date_created: undefined // TODO: derive ship variant creation timestamp from SC Data Dumper exports.
+      } satisfies NormalizedShipVariantV2;
+    })
+  );
+
+  const itemsV2: NormalizedItemV2[] = sortByExternalId(itemsV2Draft).map((item) => ({
+    ...item,
+    external_refs: sortExternalRefs(item.external_refs)
+  }));
+
+  const bundleV2: NormalizedBundleV2 = {
+    channel,
+    version,
+    companies: companiesV2,
+    ships: shipsV2,
+    ship_variants: shipVariantsV2,
+    items: itemsV2,
+    hardpoints: transformConfig.hardpointsAsCollection ? hardpointsV2 : undefined
+  };
+
   const bundle: NormalizedDataBundle = {
     manufacturers,
     ships,
@@ -1216,11 +1728,26 @@ export async function transform(
   await writeJson(join(normalizedDir, 'installed_items.json'), bundle.installed_items);
   await writeJson(join(normalizedDir, 'locales.json'), bundle.locales);
 
+  await writeJson(join(normalizedDir, 'companies.v2.json'), bundleV2.companies);
+  await writeJson(join(normalizedDir, 'ships.v2.json'), bundleV2.ships);
+  await writeJson(join(normalizedDir, 'ship_variants.v2.json'), bundleV2.ship_variants);
+  await writeJson(join(normalizedDir, 'items.v2.json'), bundleV2.items);
+  if (bundleV2.hardpoints) {
+    await writeJson(join(normalizedDir, 'hardpoints.v2.json'), bundleV2.hardpoints);
+  } else {
+    await writeJson(join(normalizedDir, 'hardpoints.v2.json'), []);
+  }
+
   log.info('Transformation complete', {
     manufacturers: bundle.manufacturers.length,
     ships: bundle.ships.length,
     variants: bundle.ship_variants.length,
-    items: bundle.items.length
+    items: bundle.items.length,
+    companies_v2: bundleV2.companies.length,
+    ships_v2: bundleV2.ships.length,
+    variants_v2: bundleV2.ship_variants.length,
+    items_v2: bundleV2.items.length,
+    hardpoints_mode: transformConfig.hardpointsAsCollection ? 'collection' : 'embedded'
   });
 
   return bundle;

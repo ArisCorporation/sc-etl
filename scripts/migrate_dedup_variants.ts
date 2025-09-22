@@ -105,10 +105,18 @@ function canonicalHullForShip(ship: ShipRecord): { hullKey: string; baseName: st
 
 async function main() {
   const args = process.argv.slice(2);
-  const dryRun = args.includes('--dry-run');
+  const hasApply = args.includes('--apply');
+  const hasDryRun = args.includes('--dry-run');
+  if (hasApply && hasDryRun) {
+    throw new Error('Specify either --apply or --dry-run, not both.');
+  }
+  const dryRun = !hasApply;
   const channel = parseArg('--channel', args) ?? 'LIVE';
 
-  log.info('Variant deduplication started', { dryRun, channel });
+  log.info('Variant deduplication started', {
+    channel,
+    mode: dryRun ? 'dry-run' : 'apply'
+  });
 
   const ships = await fetchAll<ShipRecord>('ships', {
     fields: ['id', 'external_id', 'name', 'manufacturer', 'manufacturer.code', 'manufacturer.external_id']
@@ -306,7 +314,7 @@ async function main() {
   }
 
   if (dryRun) {
-    log.info('Dry-run complete. No changes were written.');
+    log.info('Dry-run complete. No changes were written. Use --apply to persist updates.');
     return;
   }
 

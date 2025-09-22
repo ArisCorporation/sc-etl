@@ -4,11 +4,11 @@ import { join } from 'node:path';
 import { extract } from './extract.js';
 import { transform } from './transform.js';
 import { validateNormalizedBundle } from './validate.js';
-import { loadAll } from './load.js';
-import { writeDiffs } from './diffs.js';
+import { loadAll, ensureBuild, readBuildMetadata, type BuildRecord } from './load.js';
 import { log } from './utils/log.js';
 import type { Channel } from './types/index.js';
 import { pathExists } from './utils/fs.js';
+import { IngestionRun } from './utils/ingestion.js';
 
 process.on('uncaughtException', (error) => {
   log.error('Uncaught exception', error);
@@ -290,53 +290,77 @@ async function main() {
 
   log.info('ETL started', { channel, version, dataRoot });
 
-  const extractResult = await extract({
-    channel,
-    version,
-    dataRoot,
-    p4kPath,
-    forceUnp4k,
-    enableUnp4k: unp4kEnabled,
-    unp4k:
-      unp4kEnabled && p4kPath
-        ? {
-            bin: unp4kBin,
-            args: unp4kArgs
-          }
-        : undefined,
-    enableUnforge: unforgeEnabled,
-    unforge:
-      unforgeEnabled
-        ? {
-            bin: unforgeBin,
-            args: unforgeArgs
-          }
-        : undefined,
-    enableScDataDumper: scdEnabled,
-    scDataDumper:
-      scdEnabled && scdBin
-        ? {
-            bin: scdBin,
-            args: scdArgs,
-            outputDir: scdOutput
-          }
-        : undefined,
-    wineBin
-  });
-  log.info('Extracted files', { count: extractResult.discoveredFiles.length });
+  const ingestionRun = new IngestionRun();
+  let buildRecord: BuildRecord | undefined;
+  let loadResult: Awaited<ReturnType<typeof loadAll>> | undefined;
+  let ingestionSucceeded = false;
 
-  const bundle = await transform(dataRoot, channel, version);
-  await validateNormalizedBundle(bundle, join(process.cwd(), 'schemas'));
+  try {
+    const extractResult = await extract({
+      channel,
+      version,
+      dataRoot,
+      p4kPath,
+      forceUnp4k,
+      enableUnp4k: unp4kEnabled,
+      unp4k:
+        unp4kEnabled && p4kPath
+          ? {
+              bin: unp4kBin,
+              args: unp4kArgs
+            }
+          : undefined,
+      enableUnforge: unforgeEnabled,
+      unforge:
+        unforgeEnabled
+          ? {
+              bin: unforgeBin,
+              args: unforgeArgs
+            }
+          : undefined,
+      enableScDataDumper: scdEnabled,
+      scDataDumper:
+        scdEnabled && scdBin
+          ? {
+              bin: scdBin,
+              args: scdArgs,
+              outputDir: scdOutput
+            }
+          : undefined,
+      wineBin
+    });
+    log.info('Extracted files', { count: extractResult.discoveredFiles.length });
 
-  const loadResult = await loadAll(dataRoot, channel, version, bundle);
+    const bundle = await transform(dataRoot, channel, version);
+    await validateNormalizedBundle(bundle, join(process.cwd(), 'schemas'));
 
-  if (!skipDiffs) {
-    await writeDiffs({ channel, currentBuildId: loadResult.build.id, bundle });
-  } else {
-    log.info('Skipping diff generation by request');
+    const normalizedDir = join(dataRoot, 'normalized', channel, version);
+    const metadata = await readBuildMetadata(normalizedDir);
+    buildRecord = await ensureBuild(channel, version, metadata);
+    await ingestionRun.start(buildRecord.id, { channel, version });
+
+    loadResult = await loadAll(dataRoot, channel, version, bundle, {
+      build: buildRecord,
+      metadata,
+      skipDiffs
+    });
+
+    await ingestionRun.updateStats({ ...loadResult.stats } as Record<string, unknown>);
+
+    await ingestionRun.finishSuccess();
+    ingestionSucceeded = true;
+
+    if (skipDiffs) {
+      log.info('Diff generation skipped by request');
+    }
+
+    log.info('ETL finished', { buildId: loadResult.build.id });
+  } catch (error) {
+    if (!ingestionSucceeded) {
+      await ingestionRun.finishFail(error);
+    }
+    throw error;
   }
-
-  log.info('ETL finished', { buildId: loadResult.build.id });
 }
 
 main().catch((error) => {
