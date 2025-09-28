@@ -52,8 +52,7 @@ export class IngestionRun {
     if (!this.started || !this.runId) return;
     const changed = Object.assign(this.stats, partial);
     await updateOne(COLLECTION, this.runId, {
-      stats_json: changed,
-      updated_at: nowIso()
+      stats_json: changed
     });
   }
 

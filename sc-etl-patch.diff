@@ -1,0 +1,70 @@
+*** Update File: src/load.ts
+@@ loadAll
+ const normalizedV2 = await loadNormalizedBundleV2(normalizedDir, channel, version);
+ // Load legacy bundle to get installed items for item mapping
+ const legacy = await loadNormalizedBundleLegacy(normalizedDir);
+ const installedItems = legacy.installed_items ?? [];
+ // Build a map from hardpoint_external_id to item info
+ const installedByHardpoint = new Map<string, { item_external_id: string; quantity: number }>();
+ for (const inst of installedItems) {
+   if (inst.hardpoint_external_id) {
+     const existing = installedByHardpoint.get(inst.hardpoint_external_id);
+     if (existing) {
+       existing.quantity += inst.quantity ?? 1;
+     } else {
+       installedByHardpoint.set(inst.hardpoint_external_id, {
+         item_external_id: inst.item_external_id,
+         quantity: inst.quantity ?? 1
+       });
+     }
+   }
+ }
+@@ async function syncHardpoints (
+ for (const hardpoint of hardpoints) {
++    // Determine external_id and path to compute parent and item information
++    const extId = normalizeString((hardpoint as any).external_id as string);
++    if (!extId) continue;
++    const parts = extId.split(":");
++    const pathPart = parts.slice(1).join(":");
++    const pathSegs = pathPart ? pathPart.split("/") : [];
++    const codeSeg = pathSegs.length ? pathSegs[pathSegs.length - 1] : hardpoint.code;
++    const parentExt = pathSegs.length > 1 ? `${parts[0]}:${pathSegs.slice(0, -1).join('/')}` : null;
++
++    const installed = installedByHardpoint.get(extId);
++    const itemExternal = installed ? installed.item_external_id : undefined;
++    const itemQuantity = installed ? installed.quantity : undefined;
+@@
+     const snapshot: HardpointSnapshot = {
+       ship_variant: shipVariantId,
+-      code,
++      code: codeSeg ?? code,
+       category,
+       position: normalizeString(hardpoint.position) ?? null,
+       size: hardpoint.size ?? null,
+       gimballed: hardpoint.gimballed ?? null,
+       powered: hardpoint.powered ?? null,
+       seats: hardpoint.seats ?? null,
++      // new fields for hierarchy and item mapping
++      external_id: extId,
++      parent_external_id: parentExt,
++      item_external_id: itemExternal ?? null,
++      item_quantity: itemQuantity ?? null,
+       
+     };
+@@
+     const payload: Record<string, any> = {
+       ship_variant: snapshot.ship_variant,
+       code: snapshot.code,
+       category: snapshot.category,
+       position: snapshot.position,
+       size: snapshot.size,
+       gimballed: snapshot.gimballed,
+       powered: snapshot.powered,
+       seats: snapshot.seats,
+       status: 'published',
++      external_id: snapshot.external_id,
++      parent: snapshot.parent_external_id ? hardpointIdByExternal.get(snapshot.parent_external_id) ?? null : null,
++      item: itemExternal ? itemIdMap.get(itemExternal) ?? null : null,
++      item_quantity: itemQuantity ?? null,
++      is_leaf: Boolean(itemExternal),
+     };

@@ -1,7 +1,161 @@
-export type CanonicalVariantCode = 'BASE' | 'ES' | 'CL' | 'MR';
+// Canonical variant suffixes observed in the data set (plus a few manual staples such as CL/ES/MR).
+const VARIANT_TOKENS = [
+  '1',
+  '1T',
+  '2',
+  '25',
+  '3',
+  'A',
+  'A1',
+  'A2',
+  'AA',
+  'ALPHA',
+  'ANDROMEDA',
+  'ANTARES',
+  'AQUILA',
+  'ARCHIMEDES',
+  'ARGOS',
+  'ATLS',
+  'BETA',
+  'BIS2950',
+  'BIS2951',
+  'BLACK',
+  'BLADE',
+  'BLUE',
+  'C',
+  'C1',
+  'C2',
+  'CARBON',
+  'CARGO',
+  'CITIZENCON2018',
+  'CIVILIAN',
+  'CL',
+  'COMET',
+  'COMPETITION',
+  'CROCODILE',
+  'DELTA',
+  'DS',
+  'DUNESTALKER',
+  'DUNLEVY',
+  'DUR',
+  'ECLIPSE',
+  'EMERALD',
+  'ES',
+  'EX',
+  'EXEC',
+  'EXECUTIVE',
+  'EXPEDITION',
+  'F7C',
+  'F7CM',
+  'F7CR',
+  'F7CS',
+  'F8',
+  'F8C',
+  'FIREBIRD',
+  'FORCE',
+  'FORTUNE',
+  'FREELANCER',
+  'FURY',
+  'GAMMA',
+  'GEMINI',
+  'GEO',
+  'GLADIUS',
+  'GLAIVE',
+  'GRAD01',
+  'GRAD02',
+  'GRAD03',
+  'GUARDIAN',
+  'HAMMERHEAD',
+  'HARBINGER',
+  'HEARTSEEKER',
+  'HOPLITE',
+  'IKTI',
+  'INDUST',
+  'INDUSTRIAL',
+  'INFERNO',
+  'ION',
+  'JAVELIN',
+  'KUE',
+  'LN',
+  'LX',
+  'M',
+  'M2',
+  'MAKO',
+  'MAX',
+  'MEDIC',
+  'MEDIVAC',
+  'MERLIN',
+  'MILITARY',
+  'MILT',
+  'MIRU',
+  'MK1',
+  'MK2',
+  'MOD',
+  'MR',
+  'MT',
+  'MX',
+  'NOX',
+  'OMEGA',
+  'P',
+  'PEREGRINE',
+  'PHOENIX',
+  'PINK',
+  'PIR',
+  'PIRATE',
+  'PISCES',
+  'PLAT',
+  'PROSPECTOR',
+  'PULSE',
+  'QI',
+  'RAMBLER',
+  'RAVEN',
+  'RAZOR',
+  'RC',
+  'RECLAIMER',
+  'RED',
+  'REDEEMER',
+  'RELIANT',
+  'RENEGADE',
+  'RETALIATOR',
+  'RN',
+  'ROVER',
+  'RUNNER',
+  'SABRE',
+  'SCOUT',
+  'SCYTHE',
+  'SEN',
+  'SENTINEL',
+  'SHOWDOWN',
+  'SHRIKE',
+  'SNOWBLIND',
+  'STALKER',
+  'STARFARER',
+  'STEALTH',
+  'STEALTHINDUSTRIAL',
+  'STEEL',
+  'SYULEN',
+  'TAC',
+  'TALUS',
+  'TANA',
+  'TAURUS',
+  'TITAN',
+  'TOURING',
+  'TR',
+  'TRANSPORT',
+  'TRIAGE',
+  'UTILITY',
+  'VALIANT',
+  'VANGUARD',
+  'VELOCITY',
+  'WARLOCK',
+  'WILDFIRE',
+  'WOLF',
+  'YELLOW'
+] as const;
 
-const VARIANT_TOKENS: CanonicalVariantCode[] = ['ES', 'CL', 'MR'];
-const VARIANT_PATTERN = new RegExp(`\\b(${VARIANT_TOKENS.join('|')})\\b`, 'i');
+const VARIANT_TOKEN_SET = new Set<string>(VARIANT_TOKENS);
+
+export type CanonicalVariantCode = string;
 
 const EDITION_KEYWORDS = [
   'IAE',
@@ -55,13 +209,26 @@ export function buildHullKey(manufacturer?: string, family?: string): string {
 
 export function extractVariantCode(source?: string): CanonicalVariantCode {
   if (!source) return 'BASE';
-  const match = source.match(VARIANT_PATTERN);
-  if (!match) return 'BASE';
-  const value = match[1].toUpperCase();
-  if (VARIANT_TOKENS.includes(value as CanonicalVariantCode)) {
-    return value as CanonicalVariantCode;
+  let bestKnown: string | undefined;
+  let fallback: string | undefined;
+
+  for (const token of tokens(source)) {
+    const normalized = sanitizeToken(token);
+    if (!normalized) continue;
+    if (normalized === 'BASE') {
+      return 'BASE';
+    }
+    if (!fallback) {
+      fallback = normalized;
+    }
+    if (VARIANT_TOKEN_SET.has(normalized)) {
+      if (!bestKnown || normalized.length > bestKnown.length || (normalized.length === bestKnown.length && normalized < bestKnown)) {
+        bestKnown = normalized;
+      }
+    }
   }
-  return 'BASE';
+
+  return bestKnown ?? fallback ?? 'BASE';
 }
 
 export interface EditionDetection {
@@ -122,16 +289,34 @@ export function toCanonicalVariantExtId(hullKey: string, variantCode: CanonicalV
 }
 
 export function cleanFamilyName(input: string, variantCode: CanonicalVariantCode, manufacturer?: string): string {
-  const upperVariant = variantCode.toUpperCase();
-  const manufacturerToken = manufacturer ? sanitizeToken(manufacturer) : undefined;
+  const variantToken = sanitizeToken(variantCode);
+  const manufacturerTokens = new Set<string>();
+  if (manufacturer) {
+    const normalized = sanitizeToken(manufacturer);
+    manufacturerTokens.add(normalized);
+    if (normalized.endsWith('S')) {
+      manufacturerTokens.add(normalized.slice(0, -1));
+    }
+    for (const token of tokens(manufacturer)) {
+      manufacturerTokens.add(sanitizeToken(token));
+    }
+  }
+
   const filtered = tokens(input).filter((token) => {
-    const upper = token.toUpperCase();
-    if (upper === upperVariant) return false;
-    if (VARIANT_TOKENS.includes(upper as CanonicalVariantCode)) return false;
+    const upper = sanitizeToken(token);
+    if (!upper) return false;
+    if (upper === variantToken) return false;
+    if (upper !== 'BASE' && VARIANT_TOKEN_SET.has(upper)) return false;
     if (EDITION_KEYWORDS.includes(upper)) return false;
-    if (manufacturerToken && upper === manufacturerToken) return false;
+    if (manufacturerTokens.has(upper)) return false;
+    for (const candidate of manufacturerTokens) {
+      if (candidate && (upper.startsWith(candidate) || candidate.startsWith(upper))) {
+        return false;
+      }
+    }
     return true;
   });
+
   return filtered.length ? filtered.map(sanitizeToken).join('_') : sanitizeToken(input);
 }
 

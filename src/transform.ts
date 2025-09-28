@@ -28,7 +28,6 @@ import {
   type CanonicalVariantCode,
   buildHullKey,
   canonicalVariantName,
-  cleanFamilyName,
   detectEditionOrLivery,
   extractVariantCode,
   isEditionOnly,
@@ -262,6 +261,16 @@ interface RawShipSupplement {
   ScVehicle?: RawShip;
 }
 
+function extractVehicleDefinitionFromSupplement(supplement: RawShipSupplement | undefined): string | undefined {
+  if (!supplement) return undefined;
+  const candidate = optionalString(
+    (supplement as any)?.Raw?.Entity?.Components?.VehicleComponentParams?.vehicleDefinition
+  );
+  if (candidate) return candidate;
+  const alt = optionalString((supplement as any)?.VehicleComponentParams?.vehicleDefinition);
+  return alt ?? undefined;
+}
+
 interface ShipRecord {
   externalId: string;
   ship: RawShip;
@@ -281,6 +290,8 @@ interface CanonicalVariantGroup {
   hullKey: string;
   variantCode: CanonicalVariantCode;
   baseName: string;
+  baseTokens: string[];
+  variantTokens: string[];
   names: Set<string>;
   descriptions: Set<string>;
   records: VariantLoadoutRecord[];
@@ -312,6 +323,142 @@ function coalesce<T>(...values: (T | null | undefined)[]): T | undefined {
 
 function sortByExternalId<T extends { external_id: string }>(items: T[]): T[] {
   return [...items].sort((a, b) => a.external_id.localeCompare(b.external_id));
+}
+
+function sanitizeIdentifierToken(value: string): string {
+  return value
+    .replace(/[^a-z0-9]+/gi, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .toUpperCase();
+}
+
+function tokenizeIdentifier(input: string | undefined): string[] {
+  if (!input) return [];
+  return input
+    .split(/[^a-z0-9]+/i)
+    .map((part) => sanitizeIdentifierToken(part))
+    .filter(Boolean);
+}
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+}
+
+function extractVehicleClassName(ship: RawShip): string | undefined {
+  const candidate = optionalString((ship as any).vehicleDefinition ?? (ship as any).VehicleDefinition);
+  if (!candidate) return undefined;
+  const match = candidate.match(/([A-Za-z0-9_:-]+)\.(?:xml|json)$/i);
+  return match ? match[1] : undefined;
+}
+
+function collectManufacturerTokens(ship: RawShip, manufacturerCode: string | undefined): Set<string> {
+  const tokens = new Set<string>();
+  const add = (value?: string) => {
+    if (!value) return;
+    for (const token of tokenizeIdentifier(value)) {
+      tokens.add(token);
+    }
+  };
+
+  if (manufacturerCode) {
+    const normalized = sanitizeIdentifierToken(manufacturerCode);
+    tokens.add(normalized);
+    if (normalized.endsWith('S')) {
+      tokens.add(normalized.slice(0, -1));
+    }
+  }
+
+  add(optionalString(ship.manufacturer?.code));
+  add(optionalString(ship.manufacturer?.Code));
+  add(optionalString((ship as any).Manufacturer?.Code));
+  add(optionalString(ship.manufacturer?.name));
+  add(optionalString(ship.manufacturer?.Name));
+  add(optionalString((ship as any).Manufacturer?.Name));
+
+  return tokens;
+}
+
+function filterManufacturerTokens(tokens: string[], manufacturerTokens: Set<string>): string[] {
+  if (!tokens.length || !manufacturerTokens.size) return tokens;
+  return tokens.filter((token) => {
+    if (manufacturerTokens.has(token)) return false;
+    for (const candidate of manufacturerTokens) {
+      if (candidate && (token.startsWith(candidate) || candidate.startsWith(token))) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+function deriveFamilyAndVariant(
+  ship: RawShip,
+  manufacturerTokens: Set<string>
+): { familyTokens: string[]; variantTokens: string[] } {
+  const className = optionalString(ship.ClassName);
+  const baseClassName = extractVehicleClassName(ship) ?? className;
+
+  const classTokens = filterManufacturerTokens(tokenizeIdentifier(className), manufacturerTokens);
+  const baseTokens = filterManufacturerTokens(tokenizeIdentifier(baseClassName), manufacturerTokens);
+
+  const familyTokens = baseTokens.length ? baseTokens : classTokens.length ? classTokens : ['HULL'];
+
+  let variantTokens: string[] = [];
+  if (!classTokens.length || arraysEqual(classTokens, familyTokens)) {
+    variantTokens = [];
+  } else if (
+    classTokens.length > familyTokens.length &&
+    arraysEqual(classTokens.slice(0, familyTokens.length), familyTokens)
+  ) {
+    variantTokens = classTokens.slice(familyTokens.length);
+  } else {
+    const difference = classTokens.filter((token) => !familyTokens.includes(token));
+    variantTokens = difference.length ? difference : classTokens;
+  }
+
+  return { familyTokens, variantTokens };
+}
+
+function stripManufacturerPrefix(name: string, manufacturerTokens: Set<string>): string {
+  if (!name) return name;
+  const parts = name.split(/\s+/).filter(Boolean);
+  while (parts.length) {
+    const token = sanitizeIdentifierToken(parts[0]);
+    if (manufacturerTokens.has(token)) {
+      parts.shift();
+      continue;
+    }
+    let matched = false;
+    for (const candidate of manufacturerTokens) {
+      if (candidate && token && (token.startsWith(candidate) || candidate.startsWith(token))) {
+        parts.shift();
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) break;
+  }
+  return parts.join(' ');
+}
+
+function deriveVariantTokensFromCandidates(
+  candidateTokens: string[],
+  baseTokens: string[],
+  manufacturerTokens: Set<string>
+): string[] {
+  if (!candidateTokens.length) return [];
+  const filtered = filterManufacturerTokens(candidateTokens, manufacturerTokens);
+  if (!filtered.length) return [];
+  if (filtered.length > baseTokens.length && arraysEqual(filtered.slice(0, baseTokens.length), baseTokens)) {
+    return filtered.slice(baseTokens.length);
+  }
+  const diff = filtered.filter((token) => !baseTokens.includes(token));
+  if (diff.length) return diff;
+  // If everything matches the base tokens, treat as BASE variant.
+  if (arraysEqual(filtered, baseTokens)) return [];
+  return filtered;
 }
 
 function sortInstalledItems(items: NormalizedInstalledItem[]): NormalizedInstalledItem[] {
@@ -575,6 +722,10 @@ async function readShipRecords(rawDir: string): Promise<ShipRecord[]> {
           const supplement = await readJson<RawShipSupplement>(rawAbsolute);
           if (supplement.ScVehicle) {
             base = { ...(supplement.ScVehicle as RawShip), ...base };
+          }
+          const vehicleDefinition = extractVehicleDefinitionFromSupplement(supplement);
+          if (vehicleDefinition) {
+            (base as any).vehicleDefinition = vehicleDefinition;
           }
           if (Array.isArray(supplement.Loadout)) {
             loadout = supplement.Loadout;
@@ -1092,6 +1243,7 @@ export async function transform(
   const shipIdToHullKey = new Map<string, string>();
   const variantGroups = new Map<string, CanonicalVariantGroup>();
   const rawToCanonicalVariant = new Map<string, string>();
+  const hullMetadata = new Map<string, { baseTokens: string[]; manufacturerTokens: Set<string> }>();
 
   for (const record of shipRecords) {
     const ship = record.ship;
@@ -1134,12 +1286,19 @@ export async function transform(
 
     const displayName =
       optionalString(ship.name) ?? optionalString(ship.Name) ?? optionalString(ship.ClassName) ?? rawShipId;
-    const classificationSource = optionalString(ship.ClassName) ?? displayName;
-    const variantCode = extractVariantCode(`${displayName} ${classificationSource}`);
-    const familyName = cleanFamilyName(classificationSource, variantCode, manufacturerCode);
+
+    const manufacturerTokens = collectManufacturerTokens(ship, manufacturerCode);
+    const { familyTokens, variantTokens } = deriveFamilyAndVariant(ship, manufacturerTokens);
+
+    const familyName = familyTokens.length ? familyTokens.join('_') : 'HULL';
+    const variantCode: CanonicalVariantCode = variantTokens.length ? variantTokens.join('_') : 'BASE';
     const hullKey = buildHullKey(manufacturerCode, familyName);
 
     shipIdToHullKey.set(rawShipId, hullKey);
+    hullMetadata.set(hullKey, {
+      baseTokens: [...familyTokens],
+      manufacturerTokens: new Set(manufacturerTokens)
+    });
 
     const shipRefs: NormalizedExternalReference[] = [
       { source: 'raw:ships.primary', id: rawShipId }
@@ -1205,12 +1364,20 @@ export async function transform(
         hullKey,
         variantCode,
         baseName: familyName.replace(/_/g, ' '),
+        baseTokens: [...familyTokens],
+        variantTokens: [...variantTokens],
         names: new Set<string>(),
         descriptions: new Set<string>(),
         records: []
       };
-      group.names.add(canonicalVariantName(group.baseName, variantCode));
       variantGroups.set(canonicalVariantId, group);
+    } else {
+      if (!group.baseTokens.length && familyTokens.length) {
+        group.baseTokens = [...familyTokens];
+      }
+      if (!group.variantTokens.length && variantTokens.length) {
+        group.variantTokens = [...variantTokens];
+      }
     }
 
     const loadoutRecord: VariantLoadoutRecord = {
@@ -1236,6 +1403,10 @@ export async function transform(
     }
 
     if (!editionOnly && displayName) {
+      const trimmedName = stripManufacturerPrefix(displayName, manufacturerTokens);
+      if (trimmedName) {
+        group.names.add(trimmedName);
+      }
       group.names.add(displayName);
     }
     if (editionInfo.editionCode) {
@@ -1244,6 +1415,8 @@ export async function transform(
     if (descriptionCandidate) {
       group.descriptions.add(descriptionCandidate);
     }
+
+    group.names.add(canonicalVariantName(group.baseName, variantCode));
   }
 
   const ships: NormalizedShip[] = sortByExternalId([...hullMap.values()]);
@@ -1254,19 +1427,51 @@ export async function transform(
     const parentShipId = asExternalId(variant.ship_id);
     const hullKey = shipIdToHullKey.get(parentShipId);
     if (!hullKey) continue;
-    const variantCode = extractVariantCode(
-      `${optionalString(variant.variant_code) ?? ''} ${optionalString(variant.name) ?? ''}`
-    );
+    const hullMeta = hullMetadata.get(hullKey);
+    const manufacturerTokens = hullMeta?.manufacturerTokens ?? new Set<string>();
+    const baseTokens = hullMeta?.baseTokens ?? [];
+    const candidateTokens = [
+      ...tokenizeIdentifier(optionalString(variant.variant_code)),
+      ...tokenizeIdentifier(optionalString(variant.name))
+    ];
+    const derivedTokens = deriveVariantTokensFromCandidates(candidateTokens, baseTokens, manufacturerTokens);
+    const variantCode = derivedTokens.length ? derivedTokens.join('_') : 'BASE';
     const canonicalVariantId = toCanonicalVariantExtId(hullKey, variantCode);
     rawToCanonicalVariant.set(rawVariantId, canonicalVariantId);
     const group = variantGroups.get(canonicalVariantId);
     if (group) {
+      if (!group.baseTokens.length && baseTokens.length) {
+        group.baseTokens = [...baseTokens];
+      }
+      if (!group.variantTokens.length && derivedTokens.length) {
+        group.variantTokens = [...derivedTokens];
+      }
+      group.variantCode = variantCode;
+      group.names.add(canonicalVariantName(group.baseName, variantCode));
       if (variant.name) {
         group.names.add(variant.name);
       }
       if (variant.description) {
         group.descriptions.add(variant.description);
       }
+    } else {
+      const hull = hullMap.get(hullKey);
+      const baseName = hull ? hull.name : hullKey.replace(/_/g, ' ');
+      const newGroup: CanonicalVariantGroup = {
+        variantId: canonicalVariantId,
+        hullKey,
+        variantCode,
+        baseName,
+        baseTokens: [...baseTokens],
+        variantTokens: [...derivedTokens],
+        names: new Set<string>(),
+        descriptions: new Set<string>(),
+        records: []
+      };
+      newGroup.names.add(canonicalVariantName(baseName, variantCode));
+      if (variant.name) newGroup.names.add(variant.name);
+      if (variant.description) newGroup.descriptions.add(variant.description);
+      variantGroups.set(canonicalVariantId, newGroup);
     }
 
     const variantRefs: NormalizedExternalReference[] = [

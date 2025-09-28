@@ -18,14 +18,14 @@ import type {
 
 export interface BuildMetadata {
   build_hash?: string | null;
-  released?: string | null;
+  released_at?: string | null;
   status?: 'pending' | 'ingested' | 'failed';
 }
 
 export interface BuildRecord {
   id: string;
   status: string;
-  released?: string | null;
+  released_at?: string | null;
   build_hash?: string | null;
 }
 
@@ -50,11 +50,11 @@ export interface LoadOptions {
 }
 
 const COLLECTIONS = {
-  companies: process.env.SC_COMPANY_COLLECTION ?? 'sc_companies',
-  ships: process.env.SC_SHIP_COLLECTION ?? 'sc_ships',
-  shipVariants: process.env.SC_SHIP_VARIANT_COLLECTION ?? 'sc_ship_variants',
-  items: process.env.SC_ITEM_COLLECTION ?? 'sc_items',
-  hardpoints: process.env.SC_HARDPOINT_COLLECTION ?? 'sc_hardpoints'
+  companies: process.env.SC_COMPANY_COLLECTION ?? 'companies',
+  ships: process.env.SC_SHIP_COLLECTION ?? 'ships',
+  shipVariants: process.env.SC_SHIP_VARIANT_COLLECTION ?? 'ship_variants',
+  items: process.env.SC_ITEM_COLLECTION ?? 'items',
+  hardpoints: process.env.SC_HARDPOINT_COLLECTION ?? 'hardpoints'
 } as const;
 
 const PAGE_LIMIT = 200;
@@ -77,12 +77,17 @@ async function fetchAllRows<T> (
   const rows: T[] = [];
   let offset = 0;
   while (true) {
-    const batch = await readByQuery<T>(collection, {
+    const query: Record<string, unknown> = {
       fields,
-      filter,
       limit: PAGE_LIMIT,
       offset
-    });
+    };
+
+    if (filter !== undefined) {
+      query.filter = filter;
+    }
+
+    const batch = await readByQuery<T>(collection, query);
     if (!batch.length) break;
     rows.push(...batch);
     if (batch.length < PAGE_LIMIT) break;
@@ -192,11 +197,11 @@ function snapshotToRecord<T> (value: T): Record<string, unknown> {
   return value as unknown as Record<string, unknown>;
 }
 
-function shipCompositeKey (companyId: string | undefined, name: string | undefined): string | undefined {
-  if (!companyId || !name) return undefined;
+function shipCompositeKey (manufacturerId: string | undefined, name: string | undefined): string | undefined {
+  if (!manufacturerId || !name) return undefined;
   const trimmed = name.trim();
   if (!trimmed) return undefined;
-  return `${companyId}:${trimmed.toLowerCase()}`;
+  return `${manufacturerId}:${trimmed.toLowerCase()}`;
 }
 
 function variantCompositeKey (shipId: string | undefined, variantCode: string | undefined): string | undefined {
@@ -214,6 +219,18 @@ function cloneJson<T> (value: T): T {
   if (value === undefined || value === null) return value as T;
   return JSON.parse(JSON.stringify(value)) as T;
 }
+
+async function buildItemIdMap (): Promise<Map<string, string>> {
+  type ItemIdRow = { id: string; external_id?: string | null };
+  const rows = await fetchAllRows<ItemIdRow>(COLLECTIONS.items, ['id', 'external_id']);
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    const ext = normalizeString(row.external_id);
+    if (ext) map.set(ext, row.id);
+  }
+  return map;
+}
+
 
 async function loadNormalizedBundleV2 (
   dir: string,
@@ -294,7 +311,7 @@ function splitVariantStats (
 
 interface ShipSnapshot {
   name: string;
-  company: string;
+  manufacturer: string;
   external_refs: NormalizedExternalReference[];
   paints: string[];
 }
@@ -309,14 +326,14 @@ interface ShipState {
 interface ExistingShipRow {
   id: string;
   name?: string | null;
-  company?: string | { id?: string } | null;
+  manufacturer?: string | { id?: string } | null;
   external_refs?: unknown;
   paints?: unknown;
 }
 
 function makeShipState (id: string, snapshot: ShipSnapshot): ShipState {
   const refs = buildRefKeys(snapshot.external_refs);
-  const compositeKey = shipCompositeKey(snapshot.company, snapshot.name);
+  const compositeKey = shipCompositeKey(snapshot.manufacturer, snapshot.name);
   return { id, snapshot, refKeys: refs, compositeKey };
 }
 
@@ -360,8 +377,8 @@ async function syncShips (
   const existingRows = await fetchAllRows<ExistingShipRow>(COLLECTIONS.ships, [
     'id',
     'name',
-    'company',
-    'company.id',
+    'manufacturer',
+    'manufacturer.id',
     'external_refs',
     'paints'
   ]);
@@ -369,13 +386,14 @@ async function syncShips (
   const byId = new Map<string, ShipState>();
   const byComposite = new Map<string, ShipState>();
   const byRef = new Map<string, ShipState>();
+  const byExt = new Map<string, HardpointState>();
 
   for (const row of existingRows) {
     const name = normalizeString(row.name) ?? '';
-    const companyId = extractId(row.company) ?? '';
+    const manufacturerId = extractId(row.manufacturer) ?? '';
     const snapshot: ShipSnapshot = {
       name,
-      company: companyId,
+      manufacturer: manufacturerId,
       external_refs: normalizeExternalRefsInput(row.external_refs),
       paints: normalizePaintsInput(row.paints)
     };
@@ -388,14 +406,14 @@ async function syncShips (
   let diffs = 0;
 
   for (const ship of ships) {
-    const companyId = await ensureCompanyId(ship.company_code);
+    const manufacturerId = await ensureCompanyId(ship.company_code);
     const snapshot: ShipSnapshot = {
       name: ship.name,
-      company: companyId,
+      manufacturer: manufacturerId,
       external_refs: sortRefs(cloneRefs(ship.external_refs ?? [])),
       paints: normalizePaintsInput(ship.paints ?? [])
     };
-    const composite = shipCompositeKey(snapshot.company, snapshot.name);
+    const composite = shipCompositeKey(snapshot.manufacturer, snapshot.name);
     let state: ShipState | undefined = composite ? byComposite.get(composite) : undefined;
     if (!state && snapshot.external_refs.length) {
       for (const key of buildRefKeys(snapshot.external_refs)) {
@@ -405,7 +423,7 @@ async function syncShips (
     }
 
     const payload: Record<string, unknown> = {
-      company: snapshot.company,
+      manufacturer: snapshot.manufacturer,
       name: snapshot.name,
       external_refs: snapshot.external_refs,
       paints: snapshot.paints,
@@ -415,7 +433,7 @@ async function syncShips (
     if (state) {
       const diff = computeDiff(snapshotToRecord(state.snapshot), snapshotToRecord(snapshot), [
         'name',
-        'company',
+        'manufacturer',
         'external_refs',
         'paints'
       ]);
@@ -444,7 +462,7 @@ async function syncShips (
         entityType: COLLECTIONS.ships,
         entityId: newState.id,
         changeType: 'created',
-        diff: computeDiff(undefined, snapshotToRecord(snapshot), ['name', 'company', 'external_refs', 'paints'])!
+        diff: computeDiff(undefined, snapshotToRecord(snapshot), ['name', 'manufacturer', 'external_refs', 'paints'])!
       })) {
         diffs++;
       }
@@ -663,8 +681,7 @@ interface ItemSnapshot {
   size?: number | null;
   grade?: string | null;
   class?: string | null;
-  description?: string | null;
-  company?: string | null;
+  manufacturer?: string | null;
   external_refs: NormalizedExternalReference[];
   stats: Record<string, unknown>;
 }
@@ -684,8 +701,7 @@ interface ExistingItemRow {
   size?: number | string | null;
   grade?: string | null;
   class?: string | null;
-  description?: string | null;
-  company?: string | { id?: string } | null;
+  manufacturer?: string | { id?: string } | null;
   external_refs?: unknown;
   stats?: unknown;
 }
@@ -735,9 +751,8 @@ async function syncItems (
     'size',
     'grade',
     'class',
-    'description',
-    'company',
-    'company.id',
+    'manufacturer',
+    'manufacturer.id',
     'external_refs',
     'stats'
   ]);
@@ -755,8 +770,7 @@ async function syncItems (
       size: normalizeNumber(row.size) ?? null,
       grade: normalizeString(row.grade) ?? null,
       class: normalizeString(row.class) ?? null,
-      description: normalizeString(row.description) ?? null,
-      company: extractId(row.company) ?? null,
+      manufacturer: extractId(row.manufacturer) ?? null,
       external_refs: normalizeExternalRefsInput(row.external_refs),
       stats: cloneJson<Record<string, unknown>>((row.stats as Record<string, unknown>) ?? {})
     };
@@ -768,7 +782,11 @@ async function syncItems (
   let diffs = 0;
 
   for (const item of items) {
-    const companyId = item.company_code ? await ensureCompanyId(item.company_code) : null;
+    const manufacturerId = item.company_code ? await ensureCompanyId(item.company_code) : null;
+    const stats = cloneJson(item.stats ?? {});
+    if (item.description) {
+      (stats as Record<string, unknown>).description = item.description;
+    }
     const snapshot: ItemSnapshot = {
       name: item.name,
       type: item.type,
@@ -776,10 +794,9 @@ async function syncItems (
       size: item.size ?? null,
       grade: item.grade ?? null,
       class: item.class ?? null,
-      description: item.description ?? null,
-      company: companyId,
+      manufacturer: manufacturerId,
       external_refs: sortRefs(cloneRefs(item.external_refs ?? [])),
-      stats: cloneJson(item.stats ?? {})
+      stats
     };
     const composite = itemCompositeKey(snapshot.type, snapshot.name);
     let state: ItemState | undefined = composite ? byComposite.get(composite) : undefined;
@@ -797,8 +814,7 @@ async function syncItems (
       size: snapshot.size,
       grade: snapshot.grade,
       class: snapshot.class,
-      description: snapshot.description,
-      company: snapshot.company,
+      manufacturer: snapshot.manufacturer,
       external_refs: snapshot.external_refs,
       stats: snapshot.stats,
       status: 'published'
@@ -812,8 +828,7 @@ async function syncItems (
         'size',
         'grade',
         'class',
-        'description',
-        'company',
+        'manufacturer',
         'external_refs',
         'stats'
       ]);
@@ -848,8 +863,7 @@ async function syncItems (
           'size',
           'grade',
           'class',
-          'description',
-          'company',
+          'manufacturer',
           'external_refs',
           'stats'
         ])!
@@ -870,7 +884,13 @@ interface HardpointSnapshot {
   size?: number | null;
   gimballed?: boolean | null;
   powered?: boolean | null;
-  seats?: number | null;
+  path?: string | null;
+  meta?: Record<string, unknown> | null;
+  external_id: string;
+  parent?: string | null;
+  item?: string | null;
+  item_quantity?: number | null;
+  is_leaf?: boolean | null;
 }
 
 interface HardpointState {
@@ -888,8 +908,15 @@ interface ExistingHardpointRow {
   size?: number | string | null;
   gimballed?: boolean | null;
   powered?: boolean | null;
-  seats?: number | string | null;
+  meta?: unknown;
+  path?: string | null;
+  external_id?: string | null; // wichtig für byExt/hardpointIdByExternal
+  parent?: string | { id?: string } | null;
+  item?: string | { id?: string } | null;
+  item_quantity?: number | string | null;
+  is_leaf?: boolean | null;
 }
+
 
 function hardpointKey (shipVariantId: string, code: string): string {
   return `${shipVariantId}${HARDPOINT_KEY_SEPARATOR}${code.toLowerCase()}`;
@@ -898,10 +925,13 @@ function hardpointKey (shipVariantId: string, code: string): string {
 async function syncHardpoints (
   hardpoints: NormalizedHardpointV2[],
   variantMap: Map<string, string>,
+  installedByHardpoint: Map<string, { item_external_id: string; quantity: number }>,
+  itemIdMap: Map<string, string>,
   diffWriter: DiffWriter
 ): Promise<number> {
   if (!hardpoints.length) return 0;
 
+  // Vorhandene Rows inkl. external_id laden
   const existingRows = await fetchAllRows<ExistingHardpointRow>(COLLECTIONS.hardpoints, [
     'id',
     'ship_variant',
@@ -912,15 +942,42 @@ async function syncHardpoints (
     'size',
     'gimballed',
     'powered',
-    'seats'
+    'meta',
+    'path',
+    'parent',
+    'parent.id',
+    'item',
+    'item.id',
+    'item_quantity',
+    'is_leaf',
+    'external_id'
   ]);
 
-  const byKey = new Map<string, HardpointState>();
+
+  // Map zur Parent-Auflösung: external_id -> Directus-ID (mit vorhandenen füttern)
+  const hardpointIdByExternal = new Map<string, string>();
+  for (const row of existingRows) {
+    const ext = normalizeString(row.external_id);
+    if (ext) hardpointIdByExternal.set(ext, row.id);
+  }
+
+  // State-Map nach external_id (nicht mehr nach "code")
+  const byExt = new Map<string, HardpointState>();
   for (const row of existingRows) {
     const shipVariantId = extractId(row.ship_variant);
     const code = normalizeString(row.code);
+    const ext = normalizeString(row.external_id);
     const category = normalizeString(row.category) ?? '';
-    if (!shipVariantId || !code) continue;
+    if (!shipVariantId || !code || !ext) continue;
+
+    const meta = row.meta && typeof row.meta === 'object'
+      ? cloneJson<Record<string, unknown>>(row.meta as Record<string, unknown>)
+      : null;
+    const parentId = extractId(row.parent) ?? null;
+    const itemId = extractId(row.item) ?? null;
+    const itemQuantity = normalizeNumber(row.item_quantity) ?? null;
+    const isLeaf = normalizeBooleanFlag(row.is_leaf) ?? false;
+
     const snapshot: HardpointSnapshot = {
       ship_variant: shipVariantId,
       code,
@@ -929,16 +986,50 @@ async function syncHardpoints (
       size: normalizeNumber(row.size) ?? null,
       gimballed: normalizeBooleanFlag(row.gimballed) ?? null,
       powered: normalizeBooleanFlag(row.powered) ?? null,
-      seats: normalizeNumber(row.seats) ?? null
+      path: normalizeString(row.path) ?? null,
+      meta,
+      external_id: ext,
+      parent: parentId,
+      item: itemId,
+      item_quantity: itemQuantity,
+      is_leaf: isLeaf
     };
-    const key = hardpointKey(shipVariantId, code);
-    byKey.set(key, { id: row.id, snapshot, key });
+    byExt.set(ext, { id: row.id, snapshot, key: ext });
   }
+
+  // Eltern vor Kindern verarbeiten: Tiefe über path bestimmen
+  const depth = (extId: string): number => {
+    const parts = extId.split(':');                 // [variant, path...]
+    const path = parts.slice(1).join(':');
+    return path ? path.split('/').length : 1;
+  };
+  hardpoints.sort((a, b) =>
+    depth(String((a as any).external_id ?? '')) - depth(String((b as any).external_id ?? ''))
+  );
 
   const seen = new Set<string>();
   let diffs = 0;
 
   for (const hardpoint of hardpoints) {
+    // external_id / Pfad & Parent ermitteln
+    const extId = normalizeString((hardpoint as any).external_id as string);
+    if (!extId) continue;
+
+    const parts = extId.split(':');  // ["RSI_ZEUS_CL", "hp_turret/.."]
+    const pathPart = parts.slice(1).join(':');
+    const pathSegs = pathPart ? pathPart.split('/') : [];
+
+    const codeSeg = pathSegs.length ? pathSegs[pathSegs.length - 1] : hardpoint.code;
+    const parentExt = pathSegs.length > 1
+      ? `${parts[0]}:${pathSegs.slice(0, -1).join('/')}`
+      : null;
+
+    // Item-Zuordnung (legacy installed_items)
+    const installed = installedByHardpoint.get(extId);
+    const itemExternal = installed?.item_external_id;
+    const itemQuantity = installed?.quantity ?? null;
+
+    // Variant auflösen
     const shipVariantId = variantMap.get(hardpoint.ship_variant_external);
     if (!shipVariantId) {
       log.warn('Skipping hardpoint with unknown ship variant', {
@@ -947,24 +1038,44 @@ async function syncHardpoints (
       });
       continue;
     }
-    const code = normalizeString(hardpoint.code);
+
     const category = normalizeString(hardpoint.category);
-    if (!code || !category) continue;
-    const key = hardpointKey(shipVariantId, code);
+    if (!category) continue;
+
+    // pro external_id nur einmal
+    const key = extId;
     if (seen.has(key)) continue;
     seen.add(key);
 
+    const parentId = parentExt ? hardpointIdByExternal.get(parentExt) ?? null : null;
+    const itemId = itemExternal ? itemIdMap.get(itemExternal) ?? null : null;
+    const meta: Record<string, unknown> = {};
+    if (hardpoint.seats !== undefined && hardpoint.seats !== null) {
+      meta.seats = hardpoint.seats;
+    }
+    const metaValue = Object.keys(meta).length ? meta : null;
+    const pathValue = pathPart || null;
+    const isLeaf = itemId ? true : false;
+
+    // Snapshot (nur Felder, die wir diffen wollen)
     const snapshot: HardpointSnapshot = {
       ship_variant: shipVariantId,
-      code,
+      code: codeSeg ?? hardpoint.code,
       category,
       position: normalizeString(hardpoint.position) ?? null,
       size: hardpoint.size ?? null,
       gimballed: hardpoint.gimballed ?? null,
       powered: hardpoint.powered ?? null,
-      seats: hardpoint.seats ?? null
+      path: pathValue,
+      meta: metaValue,
+      external_id: extId,
+      parent: parentId,
+      item: itemId,
+      item_quantity: itemQuantity,
+      is_leaf: isLeaf
     };
 
+    // Payload für Directus
     const payload: Record<string, unknown> = {
       ship_variant: snapshot.ship_variant,
       code: snapshot.code,
@@ -973,22 +1084,37 @@ async function syncHardpoints (
       size: snapshot.size,
       gimballed: snapshot.gimballed,
       powered: snapshot.powered,
-      seats: snapshot.seats,
-      status: 'published'
+      path: snapshot.path,
+      meta: snapshot.meta,
+      status: 'published',
+      external_id: extId,
+      parent: snapshot.parent,
+      item: snapshot.item,
+      item_quantity: snapshot.item_quantity,
+      is_leaf: snapshot.is_leaf
     };
 
-    const state = byKey.get(key);
+    const state = byExt.get(key);
     if (state) {
+      // Diff inkl. "code", weil du ihn aus dem Pfad abgeleitet änderst
       const diff = computeDiff(snapshotToRecord(state.snapshot), snapshotToRecord(snapshot), [
+        'code',
         'category',
         'position',
         'size',
         'gimballed',
         'powered',
-        'seats'
+        'path',
+        'meta',
+        'parent',
+        'item',
+        'item_quantity',
+        'is_leaf'
       ]);
       if (diff) {
         await updateOne(COLLECTIONS.hardpoints, state.id, payload);
+        // Map immer aktualisieren, damit nachfolgende Kinder den Parent finden
+        hardpointIdByExternal.set(extId, state.id);
         if (diffWriter.addChange({
           entityType: COLLECTIONS.hardpoints,
           entityId: state.id,
@@ -997,20 +1123,31 @@ async function syncHardpoints (
         })) {
           diffs++;
         }
+      } else {
+        // auch ohne Update parent map füttern
+        hardpointIdByExternal.set(extId, state.id);
       }
     } else {
       const created = await createOne<{ id: string }>(COLLECTIONS.hardpoints, payload);
+      // Map für Kinder füllen
+      hardpointIdByExternal.set(extId, created.id);
       if (diffWriter.addChange({
         entityType: COLLECTIONS.hardpoints,
         entityId: created.id,
         changeType: 'created',
         diff: computeDiff(undefined, snapshotToRecord(snapshot), [
+          'code',
           'category',
           'position',
           'size',
           'gimballed',
           'powered',
-          'seats'
+          'path',
+          'meta',
+          'parent',
+          'item',
+          'item_quantity',
+          'is_leaf'
         ])!
       })) {
         diffs++;
@@ -1020,6 +1157,7 @@ async function syncHardpoints (
 
   return diffs;
 }
+
 
 async function loadNormalizedBundleLegacy (dir: string): Promise<NormalizedDataBundle> {
   return {
@@ -1042,8 +1180,8 @@ export async function readBuildMetadata (normalizedDir: string): Promise<BuildMe
   );
   return {
     build_hash: (metadataFile.build_hash as string | null | undefined) ?? undefined,
-    released:
-      (metadataFile.released as string | null | undefined) ??
+    released_at:
+      (metadataFile.released_at as string | null | undefined) ??
       (metadataFile.released_at as string | null | undefined) ??
       undefined,
     status: metadataFile.status as BuildMetadata['status']
@@ -1058,7 +1196,7 @@ export async function ensureBuild (
   const existing = await readByQuery<BuildRecord>('builds', {
     filter: { channel: { _eq: channel }, game_version: { _eq: version } },
     limit: 1,
-    fields: ['id', 'status', 'build_hash', 'released']
+    fields: ['id', 'status', 'build_hash', 'released_at']
   });
 
   const buildMeta = existing[0];
@@ -1071,8 +1209,8 @@ export async function ensureBuild (
     if (metadata.build_hash && metadata.build_hash !== buildMeta.build_hash) {
       patch.build_hash = metadata.build_hash;
     }
-    if (metadata.released && metadata.released !== buildMeta.released) {
-      patch.released = metadata.released;
+    if (metadata.released_at && metadata.released_at !== buildMeta.released_at) {
+      patch.released_at = metadata.released_at;
     }
     if (Object.keys(patch).length) {
       await updateOne('builds', buildMeta.id, patch);
@@ -1086,7 +1224,7 @@ export async function ensureBuild (
     game_version: version,
     status: 'pending',
     build_hash: metadata.build_hash ?? null,
-    released: metadata.released ?? null,
+    released_at: metadata.released_at ?? null,
     ingested: null
   });
 
@@ -1109,6 +1247,29 @@ export async function loadAll (
   log.info('Loading v2 data into Directus', { buildId: build.id, channel, version });
 
   const normalizedV2 = await loadNormalizedBundleV2(normalizedDir, channel, version);
+
+  // LEGACY installed_items für Item-Zuordnung einlesen
+  const legacy = await loadNormalizedBundleLegacy(normalizedDir);
+  const installedItems = legacy.installed_items ?? [];
+
+  // Map: hardpoint_external_id -> { item_external_id, quantity }
+  const installedByHardpoint = new Map<string, { item_external_id: string; quantity: number }>();
+  for (const inst of installedItems) {
+    if (inst?.hardpoint_external_id) {
+      const existing = installedByHardpoint.get(inst.hardpoint_external_id);
+      if (existing) {
+        existing.quantity += (inst.quantity ?? 1);
+      } else {
+        installedByHardpoint.set(inst.hardpoint_external_id, {
+          item_external_id: inst.item_external_id,
+          quantity: inst.quantity ?? 1
+        });
+      }
+    }
+  }
+
+  const itemIdMap = await buildItemIdMap();
+
   const { statsByVariant, hardpoints } = splitVariantStats(normalizedV2);
 
   const companyResolver = new CompanyResolver(COLLECTIONS.companies);
@@ -1153,7 +1314,13 @@ export async function loadAll (
   diffCount += variantSync.diffs;
 
   diffCount += await syncItems(normalizedV2.items, ensureCompanyId, diffWriter);
-  diffCount += await syncHardpoints(hardpoints, variantSync.map, diffWriter);
+  diffCount += await syncHardpoints(
+    hardpoints,
+    variantSync.map,          // Map variant external -> Directus ID
+    installedByHardpoint,     // Map hardpoint external -> { item_external_id, quantity }
+    itemIdMap,                // Map item external -> Directus ID
+    diffWriter
+  );
 
   await diffWriter.flush(build.id);
 
