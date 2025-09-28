@@ -24,6 +24,54 @@ export const directus = createDirectus(directusUrl)
 
 type AnyRecord = Record<string, unknown>;
 
+interface DirectusContext {
+  action: string;
+  collection: string;
+  payload?: unknown;
+}
+
+async function unwrapDirectusResult<T>(
+  result: unknown,
+  context: DirectusContext
+): Promise<T> {
+  if (typeof Response !== 'undefined' && result instanceof Response) {
+    let body: unknown;
+    try {
+      if (!result.bodyUsed) {
+        const text = await result.text();
+        if (text) {
+          try {
+            body = JSON.parse(text);
+          } catch {
+            body = text;
+          }
+        }
+      }
+    } catch (error) {
+      body = { parseError: (error as Error)?.message };
+    }
+
+    const headers = Object.fromEntries(result.headers.entries());
+    const error = new Error(
+      `Directus ${context.action} for ${context.collection} failed with status ${result.status} ${result.statusText}`
+    );
+    (error as any).directus = {
+      collection: context.collection,
+      action: context.action,
+      status: result.status,
+      statusText: result.statusText,
+      url: result.url,
+      headers,
+      body
+    };
+    if (context.payload !== undefined) {
+      (error as any).requestPayload = context.payload;
+    }
+    throw error;
+  }
+  return result as T;
+}
+
 export async function readByQuery<T = AnyRecord>(
   collection: string,
   query: Record<string, unknown>
@@ -86,11 +134,21 @@ export async function createMany<T = AnyRecord>(
   items: AnyRecord[]
 ): Promise<T[]> {
   if (!items.length) return [];
-  return directus.request(createItems(collection as any, items as any)) as Promise<T[]>;
+  const result = await directus.request(createItems(collection as any, items as any));
+  return unwrapDirectusResult<T[]>(result, {
+    action: 'createMany',
+    collection,
+    payload: items
+  });
 }
 
 export async function createOne<T = AnyRecord>(collection: string, item: AnyRecord): Promise<T> {
-  return directus.request(createItem(collection as any, item as any)) as Promise<T>;
+  const result = await directus.request(createItem(collection as any, item as any));
+  return unwrapDirectusResult<T>(result, {
+    action: 'createOne',
+    collection,
+    payload: item
+  });
 }
 
 export async function updateMany<T = AnyRecord>(
@@ -98,7 +156,12 @@ export async function updateMany<T = AnyRecord>(
   items: AnyRecord[]
 ): Promise<T[]> {
   if (!items.length) return [];
-  return directus.request(updateItemsBatch(collection as any, items as any)) as Promise<T[]>;
+  const result = await directus.request(updateItemsBatch(collection as any, items as any));
+  return unwrapDirectusResult<T[]>(result, {
+    action: 'updateMany',
+    collection,
+    payload: items
+  });
 }
 
 export async function updateOne<T = AnyRecord>(
@@ -106,12 +169,22 @@ export async function updateOne<T = AnyRecord>(
   key: string | number,
   item: AnyRecord
 ): Promise<T> {
-  return directus.request(updateItem(collection as any, key as any, item as any)) as Promise<T>;
+  const result = await directus.request(updateItem(collection as any, key as any, item as any));
+  return unwrapDirectusResult<T>(result, {
+    action: 'updateOne',
+    collection,
+    payload: { key, item }
+  });
 }
 
 export async function deleteMany(collection: string, keys: (string | number)[]): Promise<void> {
   if (!keys.length) return;
-  await directus.request(deleteItems(collection as any, keys as any));
+  const result = await directus.request(deleteItems(collection as any, keys as any));
+  await unwrapDirectusResult(result, {
+    action: 'deleteMany',
+    collection,
+    payload: keys
+  });
 }
 
 interface UpsertOptions {
