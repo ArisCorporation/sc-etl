@@ -155,6 +155,30 @@ const VARIANT_TOKENS = [
 
 const VARIANT_TOKEN_SET = new Set<string>(VARIANT_TOKENS);
 
+export function partitionVariantSuffix(tokens: string[]): { base: string[]; suffix: string[] } {
+  if (!tokens.length) {
+    return { base: [], suffix: [] };
+  }
+
+  const base = [...tokens];
+  const suffix: string[] = [];
+
+  while (base.length > 1) {
+    const candidate = base[base.length - 1];
+    if (!candidate || !VARIANT_TOKEN_SET.has(candidate)) break;
+    suffix.unshift(candidate);
+    base.pop();
+  }
+
+  if (!base.length && suffix.length) {
+    // Avoid returning an empty base when every token looked like a variant.
+    base.push(...suffix);
+    suffix.length = 0;
+  }
+
+  return { base, suffix };
+}
+
 export type CanonicalVariantCode = string;
 
 const EDITION_KEYWORDS = [

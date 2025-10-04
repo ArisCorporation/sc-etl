@@ -30,6 +30,7 @@ import {
   canonicalVariantName,
   detectEditionOrLivery,
   extractVariantCode,
+  partitionVariantSuffix,
   isEditionOnly,
   toCanonicalVariantExtId
 } from './lib/canon.js';
@@ -112,6 +113,29 @@ const SHIP_ITEM_TYPE_ALLOW = new Set([
   'WEAPONMINING',
   'WHEELEDCONTROLLER'
 ]);
+
+const EXCLUDED_VARIANT_CODES = new Set<string>([
+  'GEO_COLLECTOR_GRAD01',
+  'GEO_COLLECTOR_GRAD02',
+  'GEO_COLLECTOR_GRAD03',
+  'IKTI_ARGOS',
+  'BALLISTA_DUNESTALKER',
+  'BALLISTA_SNOWBLIND',
+  'MOLE_CARBON',
+  'MOLE_TALUS',
+  '600I_BIS2951',
+  'CARRACK_BIS2951',
+  'ECLIPSE_BIS2951',
+  'VALKYRIE_BIS2951',
+  'RECLAIMER_BIS2951',
+]);
+
+const EXCLUDED_SHIP_CLASS_PATTERNS: RegExp[] = [
+  /^ARGO_ATLS_GEO_COLLECTOR_GRAD\d+$/i,
+  /^ARGO_ATLS_IKTI_ARGOS$/i
+];
+
+const HULL_FAMILY_PROMOTION_TOKENS = new Set<string>(['MK1', 'MK2', 'MKII']);
 
 // ASSUMPTION: Raw structures follow the stable identifiers exposed under the `id` field.
 interface RawManufacturer {
@@ -261,7 +285,7 @@ interface RawShipSupplement {
   ScVehicle?: RawShip;
 }
 
-function extractVehicleDefinitionFromSupplement(supplement: RawShipSupplement | undefined): string | undefined {
+function extractVehicleDefinitionFromSupplement (supplement: RawShipSupplement | undefined): string | undefined {
   if (!supplement) return undefined;
   const candidate = optionalString(
     (supplement as any)?.Raw?.Entity?.Components?.VehicleComponentParams?.vehicleDefinition
@@ -297,35 +321,35 @@ interface CanonicalVariantGroup {
   records: VariantLoadoutRecord[];
 }
 
-function asExternalId(value: string | number | undefined): string {
+function asExternalId (value: string | number | undefined): string {
   if (value === undefined || value === null) {
     throw new Error('Missing external identifier in raw payload.');
   }
   return String(value);
 }
 
-function optionalString(value: unknown): string | undefined {
+function optionalString (value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined;
 }
 
-function optionalNumber(value: unknown): number | undefined {
+function optionalNumber (value: unknown): number | undefined {
   if (value === undefined || value === null) return undefined;
   const num = Number(value);
   return Number.isFinite(num) ? num : undefined;
 }
 
-function coalesce<T>(...values: (T | null | undefined)[]): T | undefined {
+function coalesce<T> (...values: (T | null | undefined)[]): T | undefined {
   for (const value of values) {
     if (value !== undefined && value !== null) return value;
   }
   return undefined;
 }
 
-function sortByExternalId<T extends { external_id: string }>(items: T[]): T[] {
+function sortByExternalId<T extends { external_id: string }> (items: T[]): T[] {
   return [...items].sort((a, b) => a.external_id.localeCompare(b.external_id));
 }
 
-function sanitizeIdentifierToken(value: string): string {
+function sanitizeIdentifierToken (value: string): string {
   return value
     .replace(/[^a-z0-9]+/gi, '_')
     .replace(/_+/g, '_')
@@ -333,27 +357,46 @@ function sanitizeIdentifierToken(value: string): string {
     .toUpperCase();
 }
 
-function tokenizeIdentifier(input: string | undefined): string[] {
+function tokenizeIdentifier (input: string | undefined): string[] {
   if (!input) return [];
-  return input
-    .split(/[^a-z0-9]+/i)
-    .map((part) => sanitizeIdentifierToken(part))
-    .filter(Boolean);
+  const tokens: string[] = [];
+  const parts = input.split(/[^a-z0-9]+/i);
+  for (const part of parts) {
+    const sanitized = sanitizeIdentifierToken(part);
+    if (!sanitized) continue;
+    const segments = sanitized.match(/[A-Z]+|\d+/g);
+    if (!segments || !segments.length) continue;
+    let buffer = segments[0];
+    for (let i = 1; i < segments.length; i++) {
+      const segment = segments[i];
+      const segmentIsDigit = /^\d+$/.test(segment);
+      if (segmentIsDigit && /[A-Z]$/.test(buffer)) {
+        buffer += segment;
+      } else {
+        tokens.push(buffer);
+        buffer = segment;
+      }
+    }
+    if (buffer) {
+      tokens.push(buffer);
+    }
+  }
+  return tokens;
 }
 
-function arraysEqual(a: string[], b: string[]): boolean {
+function arraysEqual (a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   return a.every((value, index) => value === b[index]);
 }
 
-function extractVehicleClassName(ship: RawShip): string | undefined {
+function extractVehicleClassName (ship: RawShip): string | undefined {
   const candidate = optionalString((ship as any).vehicleDefinition ?? (ship as any).VehicleDefinition);
   if (!candidate) return undefined;
   const match = candidate.match(/([A-Za-z0-9_:-]+)\.(?:xml|json)$/i);
   return match ? match[1] : undefined;
 }
 
-function collectManufacturerTokens(ship: RawShip, manufacturerCode: string | undefined): Set<string> {
+function collectManufacturerTokens (ship: RawShip, manufacturerCode: string | undefined): Set<string> {
   const tokens = new Set<string>();
   const add = (value?: string) => {
     if (!value) return;
@@ -376,11 +419,16 @@ function collectManufacturerTokens(ship: RawShip, manufacturerCode: string | und
   add(optionalString(ship.manufacturer?.name));
   add(optionalString(ship.manufacturer?.Name));
   add(optionalString((ship as any).Manufacturer?.Name));
+  const className = optionalString(ship.ClassName);
+  if (className) {
+    const prefix = className.split(/[_\s-]/)[0];
+    add(prefix);
+  }
 
   return tokens;
 }
 
-function filterManufacturerTokens(tokens: string[], manufacturerTokens: Set<string>): string[] {
+function filterManufacturerTokens (tokens: string[], manufacturerTokens: Set<string>): string[] {
   if (!tokens.length || !manufacturerTokens.size) return tokens;
   return tokens.filter((token) => {
     if (manufacturerTokens.has(token)) return false;
@@ -393,35 +441,78 @@ function filterManufacturerTokens(tokens: string[], manufacturerTokens: Set<stri
   });
 }
 
-function deriveFamilyAndVariant(
+function deriveFamilyAndVariant (
   ship: RawShip,
   manufacturerTokens: Set<string>
 ): { familyTokens: string[]; variantTokens: string[] } {
   const className = optionalString(ship.ClassName);
   const baseClassName = extractVehicleClassName(ship) ?? className;
 
-  const classTokens = filterManufacturerTokens(tokenizeIdentifier(className), manufacturerTokens);
-  const baseTokens = filterManufacturerTokens(tokenizeIdentifier(baseClassName), manufacturerTokens);
+  const classTokensRaw = filterManufacturerTokens(tokenizeIdentifier(className), manufacturerTokens);
+  const baseTokensRaw = filterManufacturerTokens(tokenizeIdentifier(baseClassName), manufacturerTokens);
 
-  const familyTokens = baseTokens.length ? baseTokens : classTokens.length ? classTokens : ['HULL'];
+  const baseCandidate = baseTokensRaw.length ? baseTokensRaw : classTokensRaw;
+  let { base: normalizedBaseTokens, suffix: baseSuffix } = partitionVariantSuffix(baseCandidate);
+  let { base: normalizedClassTokens, suffix: classSuffix } = partitionVariantSuffix(classTokensRaw);
 
-  let variantTokens: string[] = [];
-  if (!classTokens.length || arraysEqual(classTokens, familyTokens)) {
-    variantTokens = [];
-  } else if (
-    classTokens.length > familyTokens.length &&
-    arraysEqual(classTokens.slice(0, familyTokens.length), familyTokens)
-  ) {
-    variantTokens = classTokens.slice(familyTokens.length);
-  } else {
-    const difference = classTokens.filter((token) => !familyTokens.includes(token));
-    variantTokens = difference.length ? difference : classTokens;
+  let suffixTokens = baseSuffix.length ? [...baseSuffix] : [...classSuffix];
+
+  if (suffixTokens.length) {
+    const promoted = suffixTokens.filter((token) => HULL_FAMILY_PROMOTION_TOKENS.has(token));
+    if (promoted.length) {
+      const promotedSet = new Set(promoted);
+      suffixTokens = suffixTokens.filter((token) => !promotedSet.has(token));
+
+      const baseSeen = new Set(normalizedBaseTokens);
+      if (normalizedBaseTokens.length) {
+        for (const token of promoted) {
+          if (!baseSeen.has(token)) {
+            normalizedBaseTokens = [...normalizedBaseTokens, token];
+            baseSeen.add(token);
+          }
+        }
+      } else {
+        normalizedBaseTokens = [...promoted];
+      }
+
+      const classSeen = new Set(normalizedClassTokens);
+      if (normalizedClassTokens.length) {
+        for (const token of promoted) {
+          if (!classSeen.has(token)) {
+            normalizedClassTokens = [...normalizedClassTokens, token];
+            classSeen.add(token);
+          }
+        }
+      } else {
+        normalizedClassTokens = [...promoted];
+      }
+    }
   }
 
+  const familyTokens = normalizedBaseTokens.length
+    ? normalizedBaseTokens
+    : normalizedClassTokens.length
+      ? normalizedClassTokens
+      : ['HULL'];
+
+  let variantTokens: string[] = suffixTokens.length ? [...suffixTokens] : [];
+  if (!variantTokens.length) {
+    if (!normalizedClassTokens.length || arraysEqual(normalizedClassTokens, familyTokens)) {
+      variantTokens = [];
+    } else if (
+      normalizedClassTokens.length > familyTokens.length &&
+      arraysEqual(normalizedClassTokens.slice(0, familyTokens.length), familyTokens)
+    ) {
+      variantTokens = normalizedClassTokens.slice(familyTokens.length);
+    } else {
+      const difference = normalizedClassTokens.filter((token) => !familyTokens.includes(token));
+      variantTokens = difference.length ? difference : normalizedClassTokens;
+    }
+  }
   return { familyTokens, variantTokens };
 }
 
-function stripManufacturerPrefix(name: string, manufacturerTokens: Set<string>): string {
+function stripManufacturerPrefix (name: string, manufacturerTokens: Set<string>): string {
   if (!name) return name;
   const parts = name.split(/\s+/).filter(Boolean);
   while (parts.length) {
@@ -443,7 +534,7 @@ function stripManufacturerPrefix(name: string, manufacturerTokens: Set<string>):
   return parts.join(' ');
 }
 
-function deriveVariantTokensFromCandidates(
+function deriveVariantTokensFromCandidates (
   candidateTokens: string[],
   baseTokens: string[],
   manufacturerTokens: Set<string>
@@ -461,7 +552,7 @@ function deriveVariantTokensFromCandidates(
   return filtered;
 }
 
-function sortInstalledItems(items: NormalizedInstalledItem[]): NormalizedInstalledItem[] {
+function sortInstalledItems (items: NormalizedInstalledItem[]): NormalizedInstalledItem[] {
   return [...items].sort((a, b) =>
     `${a.ship_variant_external_id}:${a.item_external_id}:${a.hardpoint_external_id ?? ''}:${a.profile ?? ''}:${a.livery ?? ''}`.localeCompare(
       `${b.ship_variant_external_id}:${b.item_external_id}:${b.hardpoint_external_id ?? ''}:${b.profile ?? ''}:${b.livery ?? ''}`
@@ -469,7 +560,7 @@ function sortInstalledItems(items: NormalizedInstalledItem[]): NormalizedInstall
   );
 }
 
-function sortLocales(entries: NormalizedLocaleEntry[]): NormalizedLocaleEntry[] {
+function sortLocales (entries: NormalizedLocaleEntry[]): NormalizedLocaleEntry[] {
   return [...entries].sort((a, b) =>
     `${a.namespace}:${a.key}:${a.lang}`.localeCompare(`${b.namespace}:${b.key}:${b.lang}`)
   );
@@ -477,7 +568,7 @@ function sortLocales(entries: NormalizedLocaleEntry[]): NormalizedLocaleEntry[] 
 
 type ExternalReferenceMap = Map<string, NormalizedExternalReference>;
 
-function addExternalRefs(
+function addExternalRefs (
   collection: Map<string, ExternalReferenceMap>,
   key: string,
   refs: NormalizedExternalReference[]
@@ -497,12 +588,12 @@ function addExternalRefs(
   }
 }
 
-function refSetToArray(bucket: ExternalReferenceMap | undefined): NormalizedExternalReference[] {
+function refSetToArray (bucket: ExternalReferenceMap | undefined): NormalizedExternalReference[] {
   if (!bucket) return [];
   return [...bucket.values()];
 }
 
-function sortExternalRefs(refs: NormalizedExternalReference[]): NormalizedExternalReference[] {
+function sortExternalRefs (refs: NormalizedExternalReference[]): NormalizedExternalReference[] {
   return [...refs].sort((a, b) => {
     const sourceCmp = a.source.localeCompare(b.source);
     if (sourceCmp !== 0) return sourceCmp;
@@ -510,24 +601,29 @@ function sortExternalRefs(refs: NormalizedExternalReference[]): NormalizedExtern
   });
 }
 
-function sanitizeManufacturerToken(value: string): string {
+function sanitizeManufacturerToken (value: string): string {
   return value.replace(/[^a-z0-9]+/gi, '').toUpperCase();
 }
 
-function normalizeManufacturerCode(raw: unknown): string | undefined {
+function normalizeManufacturerCode (raw: unknown): string | undefined {
   if (raw === undefined || raw === null) return undefined;
   const text = String(raw).trim();
   if (!text) return undefined;
   return sanitizeManufacturerToken(text);
 }
 
-function fallbackManufacturerCode(name?: string, fallback?: string): string {
+function fallbackManufacturerCode (name?: string, fallback?: string): string {
   const candidate = name ?? fallback ?? 'UNKNOWN';
   // ASSUMPTION: Fallback manufacturer codes strip non-alphanumeric characters.
   return sanitizeManufacturerToken(candidate);
 }
 
-function makeLocaleEntries(
+function isExcludedShipClassName (className?: string): boolean {
+  if (!className) return false;
+  return EXCLUDED_SHIP_CLASS_PATTERNS.some((pattern) => pattern.test(className));
+}
+
+function makeLocaleEntries (
   filePath: string,
   lang: string,
   payload: Record<string, unknown>
@@ -563,7 +659,7 @@ function makeLocaleEntries(
   return entries;
 }
 
-function getItemClassSegments(value: string): string[] {
+function getItemClassSegments (value: string): string[] {
   return value
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
@@ -571,7 +667,7 @@ function getItemClassSegments(value: string): string[] {
     .filter(Boolean);
 }
 
-function dropKnownClassPrefix(segments: string[]): string[] {
+function dropKnownClassPrefix (segments: string[]): string[] {
   if (!segments.length) return segments;
   const [head, ...rest] = segments;
   if (ITEM_CLASS_PREFIXES.has(head.toLowerCase())) {
@@ -580,7 +676,7 @@ function dropKnownClassPrefix(segments: string[]): string[] {
   return segments;
 }
 
-function getItemClassification(item: RawItem): string | undefined {
+function getItemClassification (item: RawItem): string | undefined {
   const raw = (item as any).classification ?? (item as any).Classification;
   if (Array.isArray(raw)) {
     for (const entry of raw) {
@@ -593,12 +689,12 @@ function getItemClassification(item: RawItem): string | undefined {
   return optionalString(raw) ?? std;
 }
 
-function normalizeTypeToken(value: string | undefined): string | undefined {
+function normalizeTypeToken (value: string | undefined): string | undefined {
   if (!value) return undefined;
   return value.replace(/[^a-z0-9]/gi, '').toUpperCase();
 }
 
-function getItemBaseType(item: RawItem): string | undefined {
+function getItemBaseType (item: RawItem): string | undefined {
   const direct = optionalString(item.type);
   if (direct) return direct;
   const std = optionalString(item.stdItem?.Type);
@@ -606,13 +702,13 @@ function getItemBaseType(item: RawItem): string | undefined {
   return undefined;
 }
 
-function resolveItemTypeToken(item: RawItem): string | undefined {
+function resolveItemTypeToken (item: RawItem): string | undefined {
   const baseType = getItemBaseType(item);
   if (!baseType) return undefined;
   return normalizeTypeToken(baseType);
 }
 
-function isShipRelevantItem(item: RawItem): boolean {
+function isShipRelevantItem (item: RawItem): boolean {
   const classification = getItemClassification(item);
   if (classification) {
     const prefix = classification.split('.')[0]?.toLowerCase();
@@ -634,7 +730,7 @@ function isShipRelevantItem(item: RawItem): boolean {
   return false;
 }
 
-function isAllowedItem(item: RawItem, allowedTypes: Set<string>): boolean {
+function isAllowedItem (item: RawItem, allowedTypes: Set<string>): boolean {
   if (!allowedTypes.size) {
     return isShipRelevantItem(item);
   }
@@ -643,7 +739,7 @@ function isAllowedItem(item: RawItem, allowedTypes: Set<string>): boolean {
   return allowedTypes.has(token);
 }
 
-function pickItemClassCandidate(segments: string[]): string | undefined {
+function pickItemClassCandidate (segments: string[]): string | undefined {
   if (!segments.length) return undefined;
 
   let best: { value: string; score: number } | undefined;
@@ -673,7 +769,7 @@ function pickItemClassCandidate(segments: string[]): string | undefined {
   return best?.value;
 }
 
-function normalizeItemClass(raw: string | undefined): string | undefined {
+function normalizeItemClass (raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   const trimmed = raw.trim();
   if (!trimmed) return undefined;
@@ -689,7 +785,7 @@ function normalizeItemClass(raw: string | undefined): string | undefined {
   return trimmed.slice(0, ITEM_CLASS_MAX_LENGTH);
 }
 
-async function readShipRecords(rawDir: string): Promise<ShipRecord[]> {
+async function readShipRecords (rawDir: string): Promise<ShipRecord[]> {
   const aggregatedShips = await readJsonOrDefault<RawShip[]>(join(rawDir, 'ships.json'), []);
   const map = new Map<string, ShipRecord>();
 
@@ -762,7 +858,7 @@ async function readShipRecords(rawDir: string): Promise<ShipRecord[]> {
   return [...map.values()];
 }
 
-function deriveVariantCode(className: string | undefined, fallbackName?: string): string | undefined {
+function deriveVariantCode (className: string | undefined, fallbackName?: string): string | undefined {
   const normalized = optionalString(className);
   if (!normalized) return optionalString(fallbackName);
   const segments = normalized.split('_').filter(Boolean);
@@ -772,7 +868,7 @@ function deriveVariantCode(className: string | undefined, fallbackName?: string)
   return candidate || normalized;
 }
 
-function getPortName(entry: RawShipLoadoutEntry, index: number): string {
+function getPortName (entry: RawShipLoadoutEntry, index: number): string {
   return (
     optionalString(entry.portName) ??
     optionalString(entry.className) ??
@@ -781,7 +877,7 @@ function getPortName(entry: RawShipLoadoutEntry, index: number): string {
   );
 }
 
-function extractAttachCategory(entry: RawShipLoadoutEntry): string {
+function extractAttachCategory (entry: RawShipLoadoutEntry): string {
   const attachDef = entry.Item?.Components?.SAttachableComponentParams?.AttachDef;
   return (
     optionalString(attachDef?.Type) ??
@@ -791,12 +887,12 @@ function extractAttachCategory(entry: RawShipLoadoutEntry): string {
   );
 }
 
-function extractAttachSize(entry: RawShipLoadoutEntry): number | undefined {
+function extractAttachSize (entry: RawShipLoadoutEntry): number | undefined {
   const attachDef = entry.Item?.Components?.SAttachableComponentParams?.AttachDef;
   return optionalNumber(attachDef?.Size);
 }
 
-function extractItemReference(entry: RawShipLoadoutEntry): string | undefined {
+function extractItemReference (entry: RawShipLoadoutEntry): string | undefined {
   const candidates = [entry.Item?.__ref, entry.Item?.classReference, entry.classReference];
   for (const candidate of candidates) {
     if (typeof candidate !== 'string') continue;
@@ -808,7 +904,7 @@ function extractItemReference(entry: RawShipLoadoutEntry): string | undefined {
   return undefined;
 }
 
-function buildLoadoutData(
+function buildLoadoutData (
   records: VariantLoadoutRecord[],
   itemIds: Set<string>,
   ignoredItemIds: Set<string>
@@ -911,7 +1007,7 @@ function buildLoadoutData(
   return { hardpoints, installedItems, missingItems: [...missingInstall.values()] };
 }
 
-function buildShipStatsFallback(groups: CanonicalVariantGroup[]): NormalizedShipStat[] {
+function buildShipStatsFallback (groups: CanonicalVariantGroup[]): NormalizedShipStat[] {
   const stats: NormalizedShipStat[] = [];
   for (const group of groups) {
     const baseRecord = group.records.find((entry) => !entry.isEditionOnly) ?? group.records[0];
@@ -941,7 +1037,7 @@ function buildShipStatsFallback(groups: CanonicalVariantGroup[]): NormalizedShip
   return stats;
 }
 
-function mergeShipFlightStats(
+function mergeShipFlightStats (
   target: ShipVariantStatsV2,
   flight: Record<string, unknown> | undefined
 ) {
@@ -976,7 +1072,7 @@ function mergeShipFlightStats(
   if (roll !== undefined) perf.roll_rate = roll;
 }
 
-function mergeShipPropulsionStats(
+function mergeShipPropulsionStats (
   target: ShipVariantStatsV2,
   propulsion: Record<string, unknown> | undefined,
   quantum: Record<string, unknown> | undefined
@@ -1017,7 +1113,7 @@ function mergeShipPropulsionStats(
   }
 }
 
-function mergeShipDefenceStats(
+function mergeShipDefenceStats (
   target: ShipVariantStatsV2,
   ship: RawShip,
   raw: Record<string, unknown> | undefined
@@ -1032,7 +1128,7 @@ function mergeShipDefenceStats(
   }
 }
 
-function buildShipVariantStatsV2(
+function buildShipVariantStatsV2 (
   variantId: string,
   group: CanonicalVariantGroup | undefined,
   rawStats: Record<string, unknown> | undefined
@@ -1110,7 +1206,7 @@ function buildShipVariantStatsV2(
   return stats;
 }
 
-function buildItemStatsFallback(rawItems: RawItem[], itemIds: Set<string>): NormalizedItemStat[] {
+function buildItemStatsFallback (rawItems: RawItem[], itemIds: Set<string>): NormalizedItemStat[] {
   const stats: NormalizedItemStat[] = [];
   for (const item of rawItems) {
     let externalId: string;
@@ -1142,7 +1238,7 @@ function buildItemStatsFallback(rawItems: RawItem[], itemIds: Set<string>): Norm
   return stats;
 }
 
-export async function transform(
+export async function transform (
   dataRoot: string,
   channel: Channel,
   version: string
@@ -1244,18 +1340,36 @@ export async function transform(
   const variantGroups = new Map<string, CanonicalVariantGroup>();
   const rawToCanonicalVariant = new Map<string, string>();
   const hullMetadata = new Map<string, { baseTokens: string[]; manufacturerTokens: Set<string> }>();
+  const excludedCanonicalVariants = new Set<string>();
 
   for (const record of shipRecords) {
     const ship = record.ship;
     const rawShipId = record.externalId;
 
-    const manufacturerCodeInput = coalesce<string | number | undefined>(
+    const classNameUpper = optionalString(ship.ClassName)?.toUpperCase();
+    if (isExcludedShipClassName(classNameUpper)) {
+      continue;
+    }
+
+    let manufacturerCodeInput = coalesce<string | number | undefined>(
       optionalString(ship.manufacturer?.code),
       optionalString(ship.manufacturer?.Code),
       optionalString((ship as any).Manufacturer?.Code),
       ship.manufacturer_id,
       ship.manufacturer?.id
     );
+    if (!manufacturerCodeInput) {
+      const classNamePrefix = optionalString(ship.ClassName)?.split('_')[0];
+      if (classNamePrefix) {
+        manufacturerCodeInput = classNamePrefix;
+      }
+    }
+    if (!manufacturerCodeInput) {
+      const namePrefix = optionalString(ship.Name)?.split(/\s+/)[0];
+      if (namePrefix) {
+        manufacturerCodeInput = namePrefix;
+      }
+    }
     const manufacturerName =
       optionalString((ship as any).Manufacturer?.Name) ??
       optionalString((ship as any).manufacturer?.Name);
@@ -1300,6 +1414,12 @@ export async function transform(
       manufacturerTokens: new Set(manufacturerTokens)
     });
 
+    const canonicalVariantId = toCanonicalVariantExtId(hullKey, variantCode);
+    if (variantCode !== 'BASE' && EXCLUDED_VARIANT_CODES.has(variantCode)) {
+      excludedCanonicalVariants.add(canonicalVariantId);
+      continue;
+    }
+
     const shipRefs: NormalizedExternalReference[] = [
       { source: 'raw:ships.primary', id: rawShipId }
     ];
@@ -1314,7 +1434,6 @@ export async function transform(
     }
     addExternalRefs(shipExternalRefs, hullKey, shipRefs);
 
-    const canonicalVariantId = toCanonicalVariantExtId(hullKey, variantCode);
     rawToCanonicalVariant.set(rawShipId, canonicalVariantId);
 
     const editionInfo = detectEditionOrLivery(displayName);
@@ -1437,6 +1556,9 @@ export async function transform(
     const derivedTokens = deriveVariantTokensFromCandidates(candidateTokens, baseTokens, manufacturerTokens);
     const variantCode = derivedTokens.length ? derivedTokens.join('_') : 'BASE';
     const canonicalVariantId = toCanonicalVariantExtId(hullKey, variantCode);
+    if (excludedCanonicalVariants.has(canonicalVariantId)) {
+      continue;
+    }
     rawToCanonicalVariant.set(rawVariantId, canonicalVariantId);
     const group = variantGroups.get(canonicalVariantId);
     if (group) {
@@ -1592,10 +1714,10 @@ export async function transform(
     }
     const manufacturerCode = manufacturerCodeInput !== undefined
       ? registerManufacturer(String(manufacturerCodeInput), 'item', externalId, {
-          name: manufacturerName,
-          description: manufacturerDescription,
-          externalRefs: itemManufacturerRefs
-        })
+        name: manufacturerName,
+        description: manufacturerDescription,
+        externalRefs: itemManufacturerRefs
+      })
       : undefined;
 
     const rawClass =
@@ -1712,20 +1834,20 @@ export async function transform(
   const itemStatsRaw = await readJsonOrDefault<RawItemStat[]>(join(rawDir, 'item_stats.json'), []);
   const itemStats: NormalizedItemStat[] = itemStatsRaw.length
     ? itemStatsRaw
-        .filter((stat) => {
-          const external = asExternalId(stat.item_id);
-          const isKnown = itemIds.has(external);
-          if (!isKnown) {
-            log.warn('Item stats entry references unknown item', { item: stat.item_id });
-          }
-          return isKnown;
-        })
-        .map((stat) => ({
-          item_external_id: asExternalId(stat.item_id),
-          stats: stat.stats ?? {},
-          price_auec: optionalNumber(stat.price_auec),
-          availability: optionalString(stat.availability)
-        }))
+      .filter((stat) => {
+        const external = asExternalId(stat.item_id);
+        const isKnown = itemIds.has(external);
+        if (!isKnown) {
+          log.warn('Item stats entry references unknown item', { item: stat.item_id });
+        }
+        return isKnown;
+      })
+      .map((stat) => ({
+        item_external_id: asExternalId(stat.item_id),
+        stats: stat.stats ?? {},
+        price_auec: optionalNumber(stat.price_auec),
+        availability: optionalString(stat.availability)
+      }))
     : buildItemStatsFallback(rawItems, itemIds);
   const itemStatsMap = new Map<string, NormalizedItemStat>();
   for (const entry of itemStats) {
@@ -1746,19 +1868,19 @@ export async function transform(
   const shipStatsRaw = await readJsonOrDefault<RawShipStat[]>(join(rawDir, 'ship_stats.json'), []);
   const shipStats: NormalizedShipStat[] = shipStatsRaw.length
     ? shipStatsRaw
-        .map((stat) => {
-          const rawVariantId = asExternalId(stat.ship_variant_id);
-          const canonicalVariantId = rawToCanonicalVariant.get(rawVariantId);
-          if (!canonicalVariantId || !variantIds.has(canonicalVariantId)) {
-            log.warn('Ship stats entry references unknown variant', { variant: stat.ship_variant_id });
-            return undefined;
-          }
-          return {
-            ship_variant_external_id: canonicalVariantId,
-            stats: stat.stats ?? {}
-          } satisfies NormalizedShipStat;
-        })
-        .filter((entry): entry is NormalizedShipStat => Boolean(entry))
+      .map((stat) => {
+        const rawVariantId = asExternalId(stat.ship_variant_id);
+        const canonicalVariantId = rawToCanonicalVariant.get(rawVariantId);
+        if (!canonicalVariantId || !variantIds.has(canonicalVariantId)) {
+          log.warn('Ship stats entry references unknown variant', { variant: stat.ship_variant_id });
+          return undefined;
+        }
+        return {
+          ship_variant_external_id: canonicalVariantId,
+          stats: stat.stats ?? {}
+        } satisfies NormalizedShipStat;
+      })
+      .filter((entry): entry is NormalizedShipStat => Boolean(entry))
     : buildShipStatsFallback([...variantGroups.values()]);
   const shipStatsMap = new Map<string, Record<string, unknown>>();
   for (const entry of shipStats) {
