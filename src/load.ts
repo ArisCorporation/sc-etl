@@ -387,7 +387,8 @@ function detachShipState (
 async function syncShips (
   ships: NormalizedShipV2[],
   resolveCompanyId: (code: string) => Promise<string | undefined>,
-  versionName: string
+  versionName: string,
+  promoteVersions: boolean
 ): Promise<Map<string, string>> {
   const existingRows = await fetchAllRows<ExistingShipRow>(COLLECTIONS.ships, [
     'id',
@@ -456,14 +457,19 @@ async function syncShips (
       ]);
       if (diff) {
         detachShipState(state, byComposite, byRef);
-        await updateOneWithVersion(COLLECTIONS.ships, state.id, payload, versionName);
+        await updateOneWithVersion(COLLECTIONS.ships, state.id, payload, versionName, promoteVersions);
         const nextState = makeShipState(state.id, snapshot);
         byId.set(state.id, nextState);
         attachShipState(nextState, byComposite, byRef);
         state = nextState;
       }
     } else {
-      const created = await createOneWithVersion<{ id: string }>(COLLECTIONS.ships, payload, versionName);
+      const created = await createOneWithVersion<{ id: string }>(
+        COLLECTIONS.ships,
+        payload,
+        versionName,
+        promoteVersions
+      );
       const newState = makeShipState(created.id, snapshot);
       byId.set(newState.id, newState);
       attachShipState(newState, byComposite, byRef);
@@ -546,7 +552,8 @@ async function syncShipVariants (
   variants: NormalizedShipVariantV2[],
   statsByVariant: Map<string, Record<string, unknown>>,
   shipMap: Map<string, string>,
-  versionName: string
+  versionName: string,
+  promoteVersions: boolean
 ): Promise<Map<string, string>> {
   const existingRows = await fetchAllRows<ExistingShipVariantRow>(COLLECTIONS.shipVariants, [
     'id',
@@ -629,14 +636,25 @@ async function syncShipVariants (
       ]);
       if (diff) {
         detachVariantState(state, byComposite, byRef);
-        await updateOneWithVersion(COLLECTIONS.shipVariants, state.id, payload, versionName);
+        await updateOneWithVersion(
+          COLLECTIONS.shipVariants,
+          state.id,
+          payload,
+          versionName,
+          promoteVersions
+        );
         const nextState = makeVariantState(state.id, snapshot);
         byId.set(state.id, nextState);
         attachVariantState(nextState, byComposite, byRef);
         state = nextState;
       }
     } else {
-      const created = await createOneWithVersion<{ id: string }>(COLLECTIONS.shipVariants, payload, versionName);
+      const created = await createOneWithVersion<{ id: string }>(
+        COLLECTIONS.shipVariants,
+        payload,
+        versionName,
+        promoteVersions
+      );
       const newState = makeVariantState(created.id, snapshot);
       byId.set(newState.id, newState);
       attachVariantState(newState, byComposite, byRef);
@@ -720,7 +738,8 @@ function detachItemState (
 async function syncItems (
   items: NormalizedItemV2[],
   resolveCompanyId: (code: string) => Promise<string | undefined>,
-  versionName: string
+  versionName: string,
+  promoteVersions: boolean
 ): Promise<void> {
   const existingRows = await fetchAllRows<ExistingItemRow>(COLLECTIONS.items, [
     'id',
@@ -818,13 +837,18 @@ async function syncItems (
       ]);
       if (diff) {
         detachItemState(state, byComposite, byRef);
-        await updateOneWithVersion(COLLECTIONS.items, state.id, payload, versionName);
+        await updateOneWithVersion(COLLECTIONS.items, state.id, payload, versionName, promoteVersions);
         const nextState = makeItemState(state.id, snapshot);
         byId.set(state.id, nextState);
         attachItemState(nextState, byComposite, byRef);
       }
     } else {
-      const created = await createOneWithVersion<{ id: string }>(COLLECTIONS.items, payload, versionName);
+      const created = await createOneWithVersion<{ id: string }>(
+        COLLECTIONS.items,
+        payload,
+        versionName,
+        promoteVersions
+      );
       const newState = makeItemState(created.id, snapshot);
       byId.set(newState.id, newState);
       attachItemState(newState, byComposite, byRef);
@@ -883,9 +907,10 @@ async function syncHardpoints (
   variantMap: Map<string, string>,
   installedByHardpoint: Map<string, { item_external_id: string; quantity: number }>,
   itemIdMap: Map<string, string>,
-  versionName: string
+  versionName: string,
+  promoteVersions: boolean
 ): Promise<void> {
-  if (!hardpoints.length) return 0;
+  if (!hardpoints.length) return;
 
   // Vorhandene Rows inkl. external_id laden
   const existingRows = await fetchAllRows<ExistingHardpointRow>(COLLECTIONS.hardpoints, [
@@ -1067,7 +1092,13 @@ async function syncHardpoints (
         'is_leaf'
       ]);
       if (diff) {
-        await updateOneWithVersion(COLLECTIONS.hardpoints, state.id, payload, versionName);
+        await updateOneWithVersion(
+          COLLECTIONS.hardpoints,
+          state.id,
+          payload,
+          versionName,
+          promoteVersions
+        );
         // Map immer aktualisieren, damit nachfolgende Kinder den Parent finden
         hardpointIdByExternal.set(extId, state.id);
       } else {
@@ -1075,7 +1106,12 @@ async function syncHardpoints (
         hardpointIdByExternal.set(extId, state.id);
       }
     } else {
-      const created = await createOneWithVersion<{ id: string }>(COLLECTIONS.hardpoints, payload, versionName);
+      const created = await createOneWithVersion<{ id: string }>(
+        COLLECTIONS.hardpoints,
+        payload,
+        versionName,
+        promoteVersions
+      );
       // Map für Kinder füllen
       hardpointIdByExternal.set(extId, created.id);
     }
@@ -1172,6 +1208,7 @@ export async function loadAll (
 
   const normalizedV2 = await loadNormalizedBundleV2(normalizedDir, channel, version);
   const contentVersionName = `V${version}-${channel}`;
+  const promoteVersions = channel === 'LIVE';
 
   // LEGACY installed_items für Item-Zuordnung einlesen
   const legacy = await loadNormalizedBundleLegacy(normalizedDir);
@@ -1231,16 +1268,17 @@ export async function loadAll (
     await resolveCompanyId(company.code ?? '');
   }
 
-  const shipIdMap = await syncShips(normalizedV2.ships, resolveCompanyId, contentVersionName);
+  const shipIdMap = await syncShips(normalizedV2.ships, resolveCompanyId, contentVersionName, promoteVersions);
 
   const variantIdMap = await syncShipVariants(
     normalizedV2.ship_variants,
     statsByVariant,
     shipIdMap,
-    contentVersionName
+    contentVersionName,
+    promoteVersions
   );
 
-  await syncItems(normalizedV2.items, resolveCompanyId, contentVersionName);
+  await syncItems(normalizedV2.items, resolveCompanyId, contentVersionName, promoteVersions);
 
   const itemIdMap = await buildItemIdMap();
   await syncHardpoints(
@@ -1248,7 +1286,8 @@ export async function loadAll (
     variantIdMap,           // Map variant external -> Directus ID
     installedByHardpoint,   // Map hardpoint external -> { item_external_id, quantity }
     itemIdMap,              // Map item external -> Directus ID
-    contentVersionName
+    contentVersionName,
+    promoteVersions
   );
 
   const completed = await updateOne<BuildRecord>('builds', build.id, {

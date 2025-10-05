@@ -194,6 +194,7 @@ interface VersionOptions {
   name: string;
   status?: string;
   key?: string;
+  promote?: boolean;
 }
 
 async function createItemVersion (
@@ -397,6 +398,8 @@ async function createItemVersion (
     throw error;
   }
 
+  const shouldPromote = options.promote !== false;
+
   let mainHash: string | undefined;
   try {
     const body: any = await saveResponse.json();
@@ -500,8 +503,13 @@ async function createItemVersion (
     return undefined;
   }
 
-  if (!mainHash) {
+  if (shouldPromote && !mainHash) {
     mainHash = await fetchVersionHash();
+  }
+
+  if (!shouldPromote) {
+    collectionVersionSupport.set(collection, true);
+    return;
   }
 
   if (!mainHash) {
@@ -547,7 +555,8 @@ async function createItemVersion (
 export async function createOneWithVersion<T = AnyRecord>(
   collection: string,
   item: AnyRecord,
-  versionName: string
+  versionName: string,
+  promote: boolean = true
 ): Promise<T> {
   const created = await createOne<T>(collection, item);
   const rawId = (created as AnyRecord)?.id;
@@ -555,7 +564,7 @@ export async function createOneWithVersion<T = AnyRecord>(
   if (id === undefined) {
     throw new Error(`Directus createOne for ${collection} did not return an id.`);
   }
-  await createItemVersion(collection, id, item, { name: versionName });
+  await createItemVersion(collection, id, item, { name: versionName, promote });
   return created;
 }
 
@@ -563,12 +572,13 @@ export async function updateOneWithVersion<T = AnyRecord>(
   collection: string,
   key: string | number,
   item: AnyRecord,
-  versionName: string
+  versionName: string,
+  promote: boolean = true
 ): Promise<T> {
   const updated = await updateOne<T>(collection, key, item);
   const rawId = (updated as AnyRecord)?.id;
   const id = typeof rawId === 'string' || typeof rawId === 'number' ? rawId : key;
-  await createItemVersion(collection, id, item, { name: versionName });
+  await createItemVersion(collection, id, item, { name: versionName, promote });
   return updated;
 }
 

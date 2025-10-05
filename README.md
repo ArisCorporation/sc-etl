@@ -46,7 +46,6 @@ pnpm tsx src/index.ts --channel=LIVE --version=4.3.1
 Optionale Flags:
 
 - `--data-root=./data` überschreibt `DATA_ROOT`
-- `--skip-diffs` deaktiviert das Schreiben in die `diffs`-Collection
 
 Der Lauf schreibt normalisierte JSONs zurück nach `data/normalized/<CHANNEL>/<VERSION>/`, validiert sie gegen `schemas/*.json` und lädt sie via Directus REST SDK.
 
@@ -120,8 +119,6 @@ Mit `--apply` lassen sich beide Skripte produktiv ausführen. Standard ist stets
    - Synchronisiert build-gebundene Tabellen (`item_stats`, `ship_stats`, `installed_items`) inkl. Löschung veralteter Kombinationen.
    - Aktualisiert Locales (`namespace`, `key`, `lang`).
    - Markiert den Build als `ingested`.
-5. **Diffs** (`src/diffs.ts`): Vergleicht aktuelle Daten mit dem zuletzt ingested Build des selben Channels und schreibt Änderungen in `diffs`.
-
 Batch-Größen werden bei Upserts auf 500 limitiert; Fremdschlüssel werden via `external_id`-Maps aufgelöst. Alle Annahmen über Rohdaten sind im Code mit `// ASSUMPTION:` gekennzeichnet.
 
 > **Hinweis:** Das Directus-Schema in `directus-schema.json` enthält aktuell kein `item`-Feld auf `installed_items`. Der Loader überspringt deshalb Loadouts und loggt eine Warnung. Sobald das Feld (UUID M2O -> `items`) ergänzt wurde, kann der entsprechende Block in `src/load.ts` wieder aktiviert werden.
@@ -167,5 +164,4 @@ Einfaches konsolenbasiertes Logging (`src/utils/log.ts`) kennzeichnet jeden Schr
 3. **ETL starten** – `pnpm run dev -- --channel=LIVE --version=4.3.1` (Parameter anpassen). Die konfigurierten Schritte (`unp4k` → `unforge` → optional `scdatadumper`) laufen automatisch, sofern aktiviert.
 4. **Transform & Validate prüfen** – Normalisierte Dateien unter `data/normalized/...` sichten, AJV-Validierung läuft automatisch.
 5. **Load beobachten** – Loader schreibt in die Directus-Collections (`companies`, `ships`, `ship_variants`, `items`, `hardpoints`, `item_stats`, `ship_stats`, `locales`, `builds`).
-6. **Diffs generieren** – sofern `--skip-diffs` nicht gesetzt ist, landen Unterschiede im `diffs`-Table.
-7. **Views einspielen** – SQL-Skripte für Postgres/MySQL auf der Datenbank ausführen (nach Ergänzung des `installed_items.item`-Feldes).
+6. **Views einspielen** – SQL-Skripte für Postgres/MySQL auf der Datenbank ausführen (nach Ergänzung des `installed_items.item`-Feldes).
