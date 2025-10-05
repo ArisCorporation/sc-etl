@@ -131,7 +131,6 @@ async function main() {
   const channel = resolveChannel(getStringArg(rawArgs, 'channel') ?? process.env.CHANNEL);
   const version = (getStringArg(rawArgs, 'version') ?? process.env.GAME_VERSION ?? '0.0.0').toString();
   const dataRoot = (getStringArg(rawArgs, 'data-root') ?? process.env.DATA_ROOT ?? './data').toString();
-  const skipDiffs = resolveBooleanFlag(rawArgs['skip-diffs'], process.env.SKIP_DIFFS, false);
 
   const cliP4k = getStringArg(rawArgs, 'p4k');
   const envP4k = process.env.P4K_PATH ?? process.env.DATA_P4K;
@@ -341,18 +340,13 @@ async function main() {
 
     loadResult = await loadAll(dataRoot, channel, version, bundle, {
       build: buildRecord,
-      metadata,
-      skipDiffs
+      metadata
     });
 
     await ingestionRun.updateStats({ ...loadResult.stats } as Record<string, unknown>);
 
     await ingestionRun.finishSuccess();
     ingestionSucceeded = true;
-
-    if (skipDiffs) {
-      log.info('Diff generation skipped by request');
-    }
 
     log.info('ETL finished', { buildId: loadResult.build.id });
   } catch (error) {

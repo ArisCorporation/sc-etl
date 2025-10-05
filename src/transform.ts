@@ -22,15 +22,14 @@ import type {
   ShipVariantStatsV2
 } from './types/index.js';
 import { loadTransformConfig } from './config/transform.js';
+import { loadShipGrouping, type VariantAssignment } from './config/ship-groups.js';
 import { pathExists, readJson, readJsonOrDefault, writeJson } from './utils/fs.js';
 import { log } from './utils/log.js';
 import {
   type CanonicalVariantCode,
-  buildHullKey,
   canonicalVariantName,
   detectEditionOrLivery,
-  extractVariantCode,
-  partitionVariantSuffix,
+  isEditionVariantCode,
   isEditionOnly,
   toCanonicalVariantExtId
 } from './lib/canon.js';
@@ -135,8 +134,6 @@ const EXCLUDED_SHIP_CLASS_PATTERNS: RegExp[] = [
   /^ARGO_ATLS_IKTI_ARGOS$/i
 ];
 
-const HULL_FAMILY_PROMOTION_TOKENS = new Set<string>(['MK1', 'MK2', 'MKII']);
-
 // ASSUMPTION: Raw structures follow the stable identifiers exposed under the `id` field.
 interface RawManufacturer {
   id?: string | number;
@@ -167,7 +164,7 @@ interface RawShip {
   description?: string;
   Description?: string;
   manufacturer_id?: string | number;
-  manufacturer?: { id?: string | number; code?: string; Code?: string };
+  manufacturer?: { id?: string | number; code?: string; Code?: string; name?: string; Name?: string };
   Manufacturer?: { Code?: string; Name?: string };
   FlightCharacteristics?: Record<string, unknown>;
   Propulsion?: Record<string, unknown>;
@@ -384,18 +381,6 @@ function tokenizeIdentifier (input: string | undefined): string[] {
   return tokens;
 }
 
-function arraysEqual (a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((value, index) => value === b[index]);
-}
-
-function extractVehicleClassName (ship: RawShip): string | undefined {
-  const candidate = optionalString((ship as any).vehicleDefinition ?? (ship as any).VehicleDefinition);
-  if (!candidate) return undefined;
-  const match = candidate.match(/([A-Za-z0-9_:-]+)\.(?:xml|json)$/i);
-  return match ? match[1] : undefined;
-}
-
 function collectManufacturerTokens (ship: RawShip, manufacturerCode: string | undefined): Set<string> {
   const tokens = new Set<string>();
   const add = (value?: string) => {
@@ -428,90 +413,6 @@ function collectManufacturerTokens (ship: RawShip, manufacturerCode: string | un
   return tokens;
 }
 
-function filterManufacturerTokens (tokens: string[], manufacturerTokens: Set<string>): string[] {
-  if (!tokens.length || !manufacturerTokens.size) return tokens;
-  return tokens.filter((token) => {
-    if (manufacturerTokens.has(token)) return false;
-    for (const candidate of manufacturerTokens) {
-      if (candidate && (token.startsWith(candidate) || candidate.startsWith(token))) {
-        return false;
-      }
-    }
-    return true;
-  });
-}
-
-function deriveFamilyAndVariant (
-  ship: RawShip,
-  manufacturerTokens: Set<string>
-): { familyTokens: string[]; variantTokens: string[] } {
-  const className = optionalString(ship.ClassName);
-  const baseClassName = extractVehicleClassName(ship) ?? className;
-
-  const classTokensRaw = filterManufacturerTokens(tokenizeIdentifier(className), manufacturerTokens);
-  const baseTokensRaw = filterManufacturerTokens(tokenizeIdentifier(baseClassName), manufacturerTokens);
-
-  const baseCandidate = baseTokensRaw.length ? baseTokensRaw : classTokensRaw;
-  let { base: normalizedBaseTokens, suffix: baseSuffix } = partitionVariantSuffix(baseCandidate);
-  let { base: normalizedClassTokens, suffix: classSuffix } = partitionVariantSuffix(classTokensRaw);
-
-  let suffixTokens = baseSuffix.length ? [...baseSuffix] : [...classSuffix];
-
-  if (suffixTokens.length) {
-    const promoted = suffixTokens.filter((token) => HULL_FAMILY_PROMOTION_TOKENS.has(token));
-    if (promoted.length) {
-      const promotedSet = new Set(promoted);
-      suffixTokens = suffixTokens.filter((token) => !promotedSet.has(token));
-
-      const baseSeen = new Set(normalizedBaseTokens);
-      if (normalizedBaseTokens.length) {
-        for (const token of promoted) {
-          if (!baseSeen.has(token)) {
-            normalizedBaseTokens = [...normalizedBaseTokens, token];
-            baseSeen.add(token);
-          }
-        }
-      } else {
-        normalizedBaseTokens = [...promoted];
-      }
-
-      const classSeen = new Set(normalizedClassTokens);
-      if (normalizedClassTokens.length) {
-        for (const token of promoted) {
-          if (!classSeen.has(token)) {
-            normalizedClassTokens = [...normalizedClassTokens, token];
-            classSeen.add(token);
-          }
-        }
-      } else {
-        normalizedClassTokens = [...promoted];
-      }
-    }
-  }
-
-  const familyTokens = normalizedBaseTokens.length
-    ? normalizedBaseTokens
-    : normalizedClassTokens.length
-      ? normalizedClassTokens
-      : ['HULL'];
-
-  let variantTokens: string[] = suffixTokens.length ? [...suffixTokens] : [];
-  if (!variantTokens.length) {
-    if (!normalizedClassTokens.length || arraysEqual(normalizedClassTokens, familyTokens)) {
-      variantTokens = [];
-    } else if (
-      normalizedClassTokens.length > familyTokens.length &&
-      arraysEqual(normalizedClassTokens.slice(0, familyTokens.length), familyTokens)
-    ) {
-      variantTokens = normalizedClassTokens.slice(familyTokens.length);
-    } else {
-      const difference = normalizedClassTokens.filter((token) => !familyTokens.includes(token));
-      variantTokens = difference.length ? difference : normalizedClassTokens;
-    }
-  }
-  return { familyTokens, variantTokens };
-}
-
 function stripManufacturerPrefix (name: string, manufacturerTokens: Set<string>): string {
   if (!name) return name;
   const parts = name.split(/\s+/).filter(Boolean);
@@ -532,24 +433,6 @@ function stripManufacturerPrefix (name: string, manufacturerTokens: Set<string>)
     if (!matched) break;
   }
   return parts.join(' ');
-}
-
-function deriveVariantTokensFromCandidates (
-  candidateTokens: string[],
-  baseTokens: string[],
-  manufacturerTokens: Set<string>
-): string[] {
-  if (!candidateTokens.length) return [];
-  const filtered = filterManufacturerTokens(candidateTokens, manufacturerTokens);
-  if (!filtered.length) return [];
-  if (filtered.length > baseTokens.length && arraysEqual(filtered.slice(0, baseTokens.length), baseTokens)) {
-    return filtered.slice(baseTokens.length);
-  }
-  const diff = filtered.filter((token) => !baseTokens.includes(token));
-  if (diff.length) return diff;
-  // If everything matches the base tokens, treat as BASE variant.
-  if (arraysEqual(filtered, baseTokens)) return [];
-  return filtered;
 }
 
 function sortInstalledItems (items: NormalizedInstalledItem[]): NormalizedInstalledItem[] {
@@ -856,16 +739,6 @@ async function readShipRecords (rawDir: string): Promise<ShipRecord[]> {
   }
 
   return [...map.values()];
-}
-
-function deriveVariantCode (className: string | undefined, fallbackName?: string): string | undefined {
-  const normalized = optionalString(className);
-  if (!normalized) return optionalString(fallbackName);
-  const segments = normalized.split('_').filter(Boolean);
-  if (segments.length <= 1) return normalized;
-  const withoutManufacturer = segments.slice(1);
-  const candidate = withoutManufacturer.join(' ');
-  return candidate || normalized;
 }
 
 function getPortName (entry: RawShipLoadoutEntry, index: number): string {
@@ -1246,6 +1119,7 @@ export async function transform (
   const rawDir = join(dataRoot, 'raw', channel, version);
   const normalizedDir = join(dataRoot, 'normalized', channel, version);
   const transformConfig = loadTransformConfig();
+  const shipGrouping = loadShipGrouping();
 
   const rawManufacturers = await readJson<RawManufacturer[]>(join(rawDir, 'manufacturers.json'));
   const manufacturerMap = new Map<string, NormalizedManufacturer>();
@@ -1337,9 +1211,9 @@ export async function transform (
   const shipRecords = await readShipRecords(rawDir);
   const hullMap = new Map<string, NormalizedShip>();
   const shipIdToHullKey = new Map<string, string>();
+  const shipIdToAssignment = new Map<string, VariantAssignment>();
   const variantGroups = new Map<string, CanonicalVariantGroup>();
   const rawToCanonicalVariant = new Map<string, string>();
-  const hullMetadata = new Map<string, { baseTokens: string[]; manufacturerTokens: Set<string> }>();
   const excludedCanonicalVariants = new Set<string>();
 
   for (const record of shipRecords) {
@@ -1401,18 +1275,58 @@ export async function transform (
     const displayName =
       optionalString(ship.name) ?? optionalString(ship.Name) ?? optionalString(ship.ClassName) ?? rawShipId;
 
+    const assignment = shipGrouping.lookupShipId(
+      rawShipId,
+      optionalString(ship.ClassName),
+      optionalString(ship.UUID),
+      optionalString(ship.Name),
+      optionalString((ship as any).name)
+    );
+
+    if (!assignment) {
+      log.warn('Ship lacks grouping entry, skipping', {
+        ship: rawShipId,
+        className: ship.ClassName,
+        name: displayName
+      });
+      continue;
+    }
+
+    if (assignment.manufacturer && assignment.manufacturer.toUpperCase() !== manufacturerCode) {
+      log.warn('Manufacturer mismatch between grouping config and raw data', {
+        ship: rawShipId,
+        grouping: assignment.manufacturer,
+        detected: manufacturerCode
+      });
+    }
+
     const manufacturerTokens = collectManufacturerTokens(ship, manufacturerCode);
-    const { familyTokens, variantTokens } = deriveFamilyAndVariant(ship, manufacturerTokens);
 
-    const familyName = familyTokens.length ? familyTokens.join('_') : 'HULL';
-    const variantCode: CanonicalVariantCode = variantTokens.length ? variantTokens.join('_') : 'BASE';
-    const hullKey = buildHullKey(manufacturerCode, familyName);
+    const configurationCode = shipGrouping.resolveConfiguration(
+      assignment,
+      rawShipId,
+      optionalString(ship.ClassName),
+      displayName
+    );
 
-    shipIdToHullKey.set(rawShipId, hullKey);
-    hullMetadata.set(hullKey, {
-      baseTokens: [...familyTokens],
-      manufacturerTokens: new Set(manufacturerTokens)
-    });
+    const editionVariantOverride = isEditionVariantCode(assignment.variantCode) ? assignment.variantCode : undefined;
+    const variantCode = editionVariantOverride ? 'BASE' : assignment.variantCode;
+    const hullKey = assignment.hullKey;
+
+    const relatedShipIds = new Set<string>([rawShipId]);
+    for (const candidate of [
+      optionalString(ship.ClassName),
+      optionalString(ship.UUID),
+      optionalString(ship.Name),
+      optionalString((ship as any).name)
+    ]) {
+      if (!candidate) continue;
+      relatedShipIds.add(asExternalId(candidate));
+    }
+    for (const shipIdentifier of relatedShipIds) {
+      shipIdToHullKey.set(shipIdentifier, hullKey);
+      shipIdToAssignment.set(shipIdentifier, assignment);
+    }
 
     const canonicalVariantId = toCanonicalVariantExtId(hullKey, variantCode);
     if (variantCode !== 'BASE' && EXCLUDED_VARIANT_CODES.has(variantCode)) {
@@ -1436,11 +1350,10 @@ export async function transform (
 
     rawToCanonicalVariant.set(rawShipId, canonicalVariantId);
 
-    const editionInfo = detectEditionOrLivery(displayName);
-    const editionOnly = isEditionOnly(displayName);
-    // Example: "Zeus Mk II CL Warbond IAE 2954" -> canonical variant RSI_ZEUS_MKII_CL with profile "IAE2954_WARBOND".
+    const editionInfo = detectEditionOrLivery(displayName, configurationCode ?? editionVariantOverride);
+    const editionOnly = configurationCode ? true : isEditionOnly(displayName, assignment.variantCode);
 
-    const hullDisplayName = canonicalVariantName(familyName.replace(/_/g, ' '), 'BASE');
+    const hullDisplayName = canonicalVariantName(assignment.name, 'BASE');
     const descriptionCandidate = optionalString(ship.description) ?? optionalString(ship.Description);
     const sizeCandidate =
       optionalString(ship.size) ??
@@ -1482,21 +1395,18 @@ export async function transform (
         variantId: canonicalVariantId,
         hullKey,
         variantCode,
-        baseName: familyName.replace(/_/g, ' '),
-        baseTokens: [...familyTokens],
-        variantTokens: [...variantTokens],
+        baseName: assignment.name,
+        baseTokens: [],
+        variantTokens: [],
         names: new Set<string>(),
         descriptions: new Set<string>(),
         records: []
       };
       variantGroups.set(canonicalVariantId, group);
-    } else {
-      if (!group.baseTokens.length && familyTokens.length) {
-        group.baseTokens = [...familyTokens];
-      }
-      if (!group.variantTokens.length && variantTokens.length) {
-        group.variantTokens = [...variantTokens];
-      }
+    }
+
+    for (const alias of assignment.names) {
+      group.names.add(alias);
     }
 
     const loadoutRecord: VariantLoadoutRecord = {
@@ -1544,56 +1454,80 @@ export async function transform (
   for (const variant of rawVariants) {
     const rawVariantId = asExternalId(variant.id);
     const parentShipId = asExternalId(variant.ship_id);
-    const hullKey = shipIdToHullKey.get(parentShipId);
-    if (!hullKey) continue;
-    const hullMeta = hullMetadata.get(hullKey);
-    const manufacturerTokens = hullMeta?.manufacturerTokens ?? new Set<string>();
-    const baseTokens = hullMeta?.baseTokens ?? [];
-    const candidateTokens = [
-      ...tokenizeIdentifier(optionalString(variant.variant_code)),
-      ...tokenizeIdentifier(optionalString(variant.name))
-    ];
-    const derivedTokens = deriveVariantTokensFromCandidates(candidateTokens, baseTokens, manufacturerTokens);
-    const variantCode = derivedTokens.length ? derivedTokens.join('_') : 'BASE';
-    const canonicalVariantId = toCanonicalVariantExtId(hullKey, variantCode);
+    let assignment = shipGrouping.lookupShipVariantId(rawVariantId);
+    if (!assignment) {
+      const hullKey = shipIdToHullKey.get(parentShipId);
+      if (hullKey) {
+        assignment =
+          shipGrouping.lookupVariant(
+            hullKey,
+            optionalString(variant.variant_code),
+            optionalString(variant.name),
+            rawVariantId
+          ) ?? shipIdToAssignment.get(parentShipId);
+      } else {
+        assignment = shipIdToAssignment.get(parentShipId);
+      }
+    }
+
+    if (!assignment) {
+      log.warn('Ship variant lacks grouping entry, skipping', {
+        variant: rawVariantId,
+        ship: parentShipId,
+        code: variant.variant_code
+      });
+      continue;
+    }
+
+    const editionVariantOverride = isEditionVariantCode(assignment.variantCode) ? assignment.variantCode : undefined;
+    const variantCode = editionVariantOverride ? 'BASE' : assignment.variantCode;
+    const canonicalVariantId = toCanonicalVariantExtId(assignment.hullKey, variantCode);
     if (excludedCanonicalVariants.has(canonicalVariantId)) {
       continue;
     }
+
     rawToCanonicalVariant.set(rawVariantId, canonicalVariantId);
-    const group = variantGroups.get(canonicalVariantId);
-    if (group) {
-      if (!group.baseTokens.length && baseTokens.length) {
-        group.baseTokens = [...baseTokens];
-      }
-      if (!group.variantTokens.length && derivedTokens.length) {
-        group.variantTokens = [...derivedTokens];
-      }
-      group.variantCode = variantCode;
-      group.names.add(canonicalVariantName(group.baseName, variantCode));
-      if (variant.name) {
-        group.names.add(variant.name);
-      }
-      if (variant.description) {
-        group.descriptions.add(variant.description);
-      }
-    } else {
-      const hull = hullMap.get(hullKey);
-      const baseName = hull ? hull.name : hullKey.replace(/_/g, ' ');
-      const newGroup: CanonicalVariantGroup = {
+
+    let group = variantGroups.get(canonicalVariantId);
+    if (!group) {
+      const hull = hullMap.get(assignment.hullKey);
+      const baseName = hull ? hull.name : assignment.name;
+      group = {
         variantId: canonicalVariantId,
-        hullKey,
+        hullKey: assignment.hullKey,
         variantCode,
         baseName,
-        baseTokens: [...baseTokens],
-        variantTokens: [...derivedTokens],
+        baseTokens: [],
+        variantTokens: [],
         names: new Set<string>(),
         descriptions: new Set<string>(),
         records: []
       };
-      newGroup.names.add(canonicalVariantName(baseName, variantCode));
-      if (variant.name) newGroup.names.add(variant.name);
-      if (variant.description) newGroup.descriptions.add(variant.description);
-      variantGroups.set(canonicalVariantId, newGroup);
+      variantGroups.set(canonicalVariantId, group);
+    }
+
+    group.variantCode = variantCode;
+    for (const alias of assignment.names) {
+      group.names.add(alias);
+    }
+    group.names.add(canonicalVariantName(group.baseName, variantCode));
+    if (variant.name) {
+      group.names.add(variant.name);
+    }
+    if (variant.description) {
+      group.descriptions.add(variant.description);
+    }
+
+    const variantConfigurationCode = shipGrouping.resolveConfiguration(
+      assignment,
+      rawVariantId,
+      optionalString(variant.name)
+    );
+    if (variantConfigurationCode) {
+      const configurationEntry = assignment.configurations.find((entry) => entry.code === variantConfigurationCode);
+      if (configurationEntry) {
+        group.names.add(configurationEntry.match);
+      }
     }
 
     const variantRefs: NormalizedExternalReference[] = [
@@ -2001,7 +1935,10 @@ export async function transform (
           statsPayload.hardpoints = hardpointBundle;
         }
       }
-      const variantCode = group?.variantCode ?? extractVariantCode(variant.name ?? variant.external_id);
+      const fallbackVariantCode = variant.variant_code
+        ? sanitizeIdentifierToken(variant.variant_code) || 'BASE'
+        : 'BASE';
+      const variantCode = group?.variantCode ?? fallbackVariantCode;
       const fallbackBaseName = group?.baseName ?? variant.ship_external_id.replace(/_/g, ' ');
       const fallbackName = canonicalVariantName(fallbackBaseName, variantCode);
       return {

@@ -1,4 +1,4 @@
-import { readByQuery, createOne } from './directus.js';
+import { readByQuery } from './directus.js';
 import { log } from './log.js';
 
 interface CompanyRow {
@@ -71,22 +71,25 @@ export class CompanyResolver {
   }
 
   async resolveId(code: string): Promise<string> {
+    const existing = await this.lookupId(code);
+    if (!existing) {
+      throw new Error(`Company with code ${code} not found in ${this.collection}`);
+    }
+    return existing;
+  }
+
+  async lookupId(code: string): Promise<string | undefined> {
     await this.ensureWarm();
-    const normalized = normalizeCode(code);
-    const cached = this.cache.get(normalized);
-    if (cached) return cached;
-
-    const payload = {
-      code: normalized,
-      name: normalized,
-      status: 'published'
-    } satisfies Record<string, unknown>;
-
-    const created = await createOne<CompanyRow>(this.collection, payload);
-    const id = created.id;
-    this.cache.set(normalized, id);
-    log.info('Created company placeholder', { collection: this.collection, code: normalized, id });
-    return id;
+    try {
+      const normalized = normalizeCode(code);
+      return this.cache.get(normalized);
+    } catch (error) {
+      log.warn('Failed to normalise company code during lookup', {
+        collection: this.collection,
+        code,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return undefined;
+    }
   }
 }
-

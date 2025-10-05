@@ -1,3 +1,6 @@
+import rawEditionKeywords from '../../schemas/edition-keywords.json' with { type: 'json' };
+import rawEditionVariantCodes from '../../schemas/edition-variant-codes.json' with { type: 'json' };
+
 // Canonical variant suffixes observed in the data set (plus a few manual staples such as CL/ES/MR).
 const VARIANT_TOKENS = [
   '1',
@@ -181,27 +184,19 @@ export function partitionVariantSuffix(tokens: string[]): { base: string[]; suff
 
 export type CanonicalVariantCode = string;
 
-const EDITION_KEYWORDS = [
-  'IAE',
-  'INVICTUS',
-  'WARBOND',
-  'SHOWFLOOR',
-  'SHOWROOM',
-  'FOUNDATION',
-  'FOUNDER',
-  'PROMO',
-  'LIVERY',
-  'PAINT',
-  'REFERRAL',
-  'BUNDLE',
-  'PACK',
-  'JUBILEE',
-  'LIMITED',
-  'EDITION',
-  'EVENT'
-];
+const EDITION_KEYWORDS = Array.isArray(rawEditionKeywords)
+  ? rawEditionKeywords.map((keyword) => String(keyword).toUpperCase())
+  : [];
 
-const EDITION_REGEX = new RegExp(`\\b(${EDITION_KEYWORDS.join('|')})\\b`, 'i');
+const EDITION_KEYWORD_SET = new Set(EDITION_KEYWORDS);
+
+const EDITION_VARIANT_CODES = Array.isArray(rawEditionVariantCodes)
+  ? new Set<string>(rawEditionVariantCodes.map((value) => sanitizeToken(String(value))))
+  : new Set<string>();
+
+const EDITION_REGEX = EDITION_KEYWORDS.length
+  ? new RegExp(`\\b(${EDITION_KEYWORDS.map((keyword) => escapeRegExp(keyword)).join('|')})\\b`, 'i')
+  : null;
 const LIVERY_REGEX = /\b(LIVERY|PAINT)\b/i;
 
 function sanitizeToken(value: string): string {
@@ -214,6 +209,10 @@ function sanitizeToken(value: string): string {
 
 function tokens(input: string): string[] {
   return input.split(/[^a-z0-9]+/i).filter(Boolean);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function titleCase(value: string): string {
@@ -260,7 +259,10 @@ export interface EditionDetection {
   livery?: string | null;
 }
 
-export function detectEditionOrLivery(name?: string): EditionDetection {
+export function detectEditionOrLivery(
+  name?: string,
+  forcedEditionCode?: CanonicalVariantCode
+): EditionDetection {
   if (!name) {
     return {};
   }
@@ -268,7 +270,7 @@ export function detectEditionOrLivery(name?: string): EditionDetection {
   const detected: string[] = [];
   for (const token of tokens(name)) {
     const upper = token.toUpperCase();
-    if (EDITION_KEYWORDS.includes(upper)) {
+    if (EDITION_KEYWORD_SET.has(upper)) {
       detected.push(upper);
     }
   }
@@ -287,6 +289,13 @@ export function detectEditionOrLivery(name?: string): EditionDetection {
     editionCode = sanitizeToken(detected.join('_'));
   }
 
+  if (forcedEditionCode) {
+    const normalized = sanitizeToken(forcedEditionCode);
+    if (normalized && normalized !== 'BASE') {
+      editionCode = normalized;
+    }
+  }
+
   let livery: string | null = null;
   const liveryMatch = name.match(LIVERY_REGEX);
   if (liveryMatch) {
@@ -302,10 +311,19 @@ export function detectEditionOrLivery(name?: string): EditionDetection {
   return { editionCode, livery };
 }
 
-export function isEditionOnly(name?: string): boolean {
+export function isEditionVariantCode(code?: CanonicalVariantCode): boolean {
+  if (!code) return false;
+  return EDITION_VARIANT_CODES.has(sanitizeToken(code));
+}
+
+export function isEditionOnly(name?: string, variantCode?: CanonicalVariantCode): boolean {
   if (!name) return false;
-  if (extractVariantCode(name) !== 'BASE') return false;
-  return EDITION_REGEX.test(name);
+  const normalizedCode = sanitizeToken(variantCode ?? extractVariantCode(name));
+  if (isEditionVariantCode(normalizedCode)) {
+    return true;
+  }
+  if (normalizedCode !== 'BASE') return false;
+  return EDITION_REGEX ? EDITION_REGEX.test(name) : false;
 }
 
 export function toCanonicalVariantExtId(hullKey: string, variantCode: CanonicalVariantCode): string {

@@ -1,0 +1,1096 @@
+{
+  "_comment": "Generated from LIVE/4.3.1 raw ship data on 2025-10-05T11:20:43.140Z",
+  "hulls": {
+    "AEG_AVENGER": {
+      "manufacturer": "AEG",
+      "name": "Avenger",
+      "variants": {
+        "STALKER": "AEGS_Avenger_Stalker",
+        "TITAN": "AEGS_Avenger_Titan",
+        "TITAN_RENEGADE": "AEGS_Avenger_Titan_Renegade",
+        "WARLOCK": "AEGS_Avenger_Warlock"
+      }
+    },
+    "AEG_ECLIPSE": {
+      "manufacturer": "AEG",
+      "name": "Eclipse",
+      "variants": {
+        "BASE": "AEGS_Eclipse"
+      }
+    },
+    "AEG_GLADIUS": {
+      "manufacturer": "AEG",
+      "name": "Gladius",
+      "variants": {
+        "BASE": "AEGS_Gladius",
+        "CROCODILE": "AEGS_Gladius_Crocodile",
+        "DUNLEVY": "AEGS_Gladius_Dunlevy",
+        "PIR": "AEGS_Gladius_PIR",
+        "VALIANT": "AEGS_Gladius_Valiant"
+      }
+    },
+    "AEG_HAMMERHEAD": {
+      "manufacturer": "AEG",
+      "name": "Hammerhead",
+      "variants": {
+        "BASE": "AEGS_Hammerhead",
+        "SHOWDOWN": "AEGS_Hammerhead_Showdown"
+      }
+    },
+    "AEG_IDRIS": {
+      "manufacturer": "AEG",
+      "name": "Idris",
+      "variants": {
+        "M": "AEGS_Idris_M",
+        "P": "AEGS_Idris_P"
+      }
+    },
+    "AEG_IDRIS_P_FW": {
+      "manufacturer": "AEG",
+      "name": "Idris P Fw",
+      "variants": {
+        "25": "AEGS_Idris_P_FW_25"
+      }
+    },
+    "AEG_JAVELIN": {
+      "manufacturer": "AEG",
+      "name": "Javelin",
+      "variants": {
+        "BASE": "AEGS_Javelin"
+      }
+    },
+    "AEG_RECLAIMER": {
+      "manufacturer": "AEG",
+      "name": "Reclaimer",
+      "variants": {
+        "BASE": "AEGS_Reclaimer",
+        "SHOWDOWN": "AEGS_Reclaimer_Showdown"
+      }
+    },
+    "AEG_REDEEMER": {
+      "manufacturer": "AEG",
+      "name": "Redeemer",
+      "variants": {
+        "BASE": "AEGS_Redeemer"
+      }
+    },
+    "AEG_RETALIATOR": {
+      "manufacturer": "AEG",
+      "name": "Retaliator",
+      "variants": {
+        "BASE": "AEGS_Retaliator"
+      }
+    },
+    "AEG_SABRE": {
+      "manufacturer": "AEG",
+      "name": "Sabre",
+      "variants": {
+        "BASE": "AEGS_Sabre",
+        "COMET": "AEGS_Sabre_Comet",
+        "FIREBIRD": "AEGS_Sabre_Firebird",
+        "PEREGRINE": "AEGS_Sabre_Peregrine",
+        "RAVEN": "AEGS_Sabre_Raven"
+      }
+    },
+    "AEG_SABRE_FIREBIRD_COLLECTOR": {
+      "manufacturer": "AEG",
+      "name": "Sabre Firebird Collector",
+      "variants": {
+        "MILT": {
+          "match": "AEGS_Sabre_Firebird_Collector_Milt",
+          "configurations": {
+            "AEGIS_SABRE_FIREBIRD_WIKELO_WAR_SPECIAL": "Aegis Sabre Firebird Wikelo War Special"
+          }
+        }
+      }
+    },
+    "AEG_SABRE_PEREGRINE_COLLECTOR": {
+      "manufacturer": "AEG",
+      "name": "Sabre Peregrine Collector",
+      "variants": {
+        "COMPETITION": {
+          "match": "AEGS_Sabre_Peregrine_Collector_Competition",
+          "configurations": {
+            "AEGIS_SABRE_PEREGRINE_WIKELO_SPEEDY_SPECIAL": "Aegis Sabre Peregrine Wikelo Speedy Special"
+          }
+        }
+      }
+    },
+    "AEG_VANGUARD": {
+      "manufacturer": "AEG",
+      "name": "Vanguard",
+      "variants": {
+        "BASE": "AEGS_Vanguard",
+        "HARBINGER": "AEGS_Vanguard_Harbinger",
+        "HOPLITE": "AEGS_Vanguard_Hoplite",
+        "SENTINEL": "AEGS_Vanguard_Sentinel"
+      }
+    },
+    "ANVL_ARROW": {
+      "manufacturer": "ANVL",
+      "name": "Arrow",
+      "variants": {
+        "BASE": "ANVL_Arrow"
+      }
+    },
+    "ANVL_ASGARD": {
+      "manufacturer": "ANVL",
+      "name": "Asgard",
+      "variants": {
+        "BASE": "ANVL_Asgard"
+      }
+    },
+    "ANVL_BALLISTA": {
+      "manufacturer": "ANVL",
+      "name": "Ballista",
+      "variants": {
+        "BASE": "ANVL_Ballista"
+      }
+    },
+    "ANVL_C8": {
+      "manufacturer": "ANVL",
+      "name": "C8",
+      "variants": {
+        "PISCES": "ANVL_C8_Pisces"
+      }
+    },
+    "ANVL_C8R": {
+      "manufacturer": "ANVL",
+      "name": "C8r",
+      "variants": {
+        "PISCES": "ANVL_C8R_Pisces"
+      }
+    },
+    "ANVL_C8X": {
+      "manufacturer": "ANVL",
+      "name": "C8x",
+      "variants": {
+        "PISCES_EXPEDITION": "ANVL_C8X_Pisces_Expedition"
+      }
+    },
+    "ANVL_CARRACK": {
+      "manufacturer": "ANVL",
+      "name": "Carrack",
+      "variants": {
+        "BASE": "ANVL_Carrack",
+        "EXPEDITION": "ANVL_Carrack_Expedition"
+      }
+    },
+    "ANVL_CENTURION": {
+      "manufacturer": "ANVL",
+      "name": "Centurion",
+      "variants": {
+        "BASE": "ANVL_Centurion"
+      }
+    },
+    "ANVL_GLADIATOR": {
+      "manufacturer": "ANVL",
+      "name": "Gladiator",
+      "variants": {
+        "BASE": "ANVL_Gladiator"
+      }
+    },
+    "ANVL_HAWK": {
+      "manufacturer": "ANVL",
+      "name": "Hawk",
+      "variants": {
+        "BASE": "ANVL_Hawk"
+      }
+    },
+    "ANVL_HORNET": {
+      "manufacturer": "ANVL",
+      "name": "Hornet",
+      "variants": {
+        "F7C": "ANVL_Hornet_F7C",
+        "F7C_MK2": "ANVL_Hornet_F7C_Mk2",
+        "F7C_WILDFIRE": "ANVL_Hornet_F7C_Wildfire",
+        "F7CM": "ANVL_Hornet_F7CM",
+        "F7CM_HEARTSEEKER": "ANVL_Hornet_F7CM_Heartseeker",
+        "F7CM_MK2": "ANVL_Hornet_F7CM_Mk2",
+        "F7CM_MK2_HEARTSEEKER": "ANVL_Hornet_F7CM_Mk2_Heartseeker",
+        "F7CR": "ANVL_Hornet_F7CR",
+        "F7CR_MK2": "ANVL_Hornet_F7CR_Mk2",
+        "F7CS": "ANVL_Hornet_F7CS",
+        "F7CS_MK2": "ANVL_Hornet_F7CS_Mk2"
+      }
+    },
+    "ANVL_HORNET_F7_MK2_COLLECTOR": {
+      "manufacturer": "ANVL",
+      "name": "Hornet F7 Mk2 Collector",
+      "variants": {
+        "MOD": {
+          "match": "ANVL_Hornet_F7_Mk2_Collector_Mod",
+          "configurations": {
+            "ANVIL_F7_HORNET_MK_WIKELO": "Anvil F7 Hornet Mk Wikelo"
+          }
+        }
+      }
+    },
+    "ANVL_HORNET_F7A": {
+      "manufacturer": "ANVL",
+      "name": "Hornet F7a",
+      "variants": {
+        "MK1": "ANVL_Hornet_F7A_Mk1",
+        "MK2": "ANVL_Hornet_F7A_Mk2",
+        "MK2_EXEC_MILITARY": {
+          "match": "ANVL_Hornet_F7A_Mk2_Exec_Military",
+          "configurations": {
+            "HORNET_F7A_MK_II_PYAM_EXEC": "Hornet F7A Mk II PYAM Exec"
+          }
+        },
+        "MK2_EXEC_STEALTH": {
+          "match": "ANVL_Hornet_F7A_Mk2_Exec_Stealth",
+          "configurations": {
+            "HORNET_F7A_MK_II_PYAM_EXEC": "Hornet F7A Mk II PYAM Exec"
+          }
+        }
+      }
+    },
+    "ANVL_HURRICANE": {
+      "manufacturer": "ANVL",
+      "name": "Hurricane",
+      "variants": {
+        "BASE": "ANVL_Hurricane"
+      }
+    },
+    "ANVL_LIGHTNING": {
+      "manufacturer": "ANVL",
+      "name": "Lightning",
+      "variants": {
+        "F8": "ANVL_Lightning_F8",
+        "F8C": "ANVL_Lightning_F8C",
+        "F8C_EXEC": "ANVL_Lightning_F8C_Exec",
+        "F8C_EXEC_MILITARY": {
+          "match": "ANVL_Lightning_F8C_Exec_Military",
+          "configurations": {
+            "F8C_LIGHTNING_PYAM_EXEC": "F8C Lightning PYAM Exec"
+          }
+        },
+        "F8C_EXEC_STEALTH": {
+          "match": "ANVL_Lightning_F8C_Exec_Stealth",
+          "configurations": {
+            "F8C_LIGHTNING_PYAM_EXEC": "F8C Lightning PYAM Exec"
+          }
+        },
+        "F8C_PLAT": "ANVL_Lightning_F8C_Plat"
+      }
+    },
+    "ANVL_LIGHTNING_F8C_COLLECTOR": {
+      "manufacturer": "ANVL",
+      "name": "Lightning F8c Collector",
+      "variants": {
+        "MILITARY": {
+          "match": "ANVL_Lightning_F8C_Collector_Military",
+          "configurations": {
+            "ANVIL_F8C_LIGHTNING_WIKELO_WAR_SPECIAL": "Anvil F8C Lightning Wikelo War Special"
+          }
+        },
+        "STEALTH": {
+          "match": "ANVL_Lightning_F8C_Collector_Stealth",
+          "configurations": {
+            "ANVIL_F8C_LIGHTNING_WIKELO_SNEAK_SPECIAL": "Anvil F8C Lightning Wikelo Sneak Special"
+          }
+        }
+      }
+    },
+    "ANVL_SPARTAN": {
+      "manufacturer": "ANVL",
+      "name": "Spartan",
+      "variants": {
+        "BASE": "ANVL_Spartan"
+      }
+    },
+    "ANVL_TERRAPIN": {
+      "manufacturer": "ANVL",
+      "name": "Terrapin",
+      "variants": {
+        "BASE": "ANVL_Terrapin",
+        "MEDIC": "ANVL_Terrapin_Medic"
+      }
+    },
+    "ANVL_TERRAPIN_MEDIC_COLLECTOR": {
+      "manufacturer": "ANVL",
+      "name": "Terrapin Medic Collector",
+      "variants": {
+        "MEDIC": {
+          "match": "ANVL_Terrapin_Medic_Collector_Medic",
+          "configurations": {
+            "ANVIL_TERRAPIN_MEDIC_WIKELO_SAVIOR_SPECIAL": "Anvil Terrapin Medic Wikelo Savior Special"
+          }
+        }
+      }
+    },
+    "ANVL_VALKYRIE": {
+      "manufacturer": "ANVL",
+      "name": "Valkyrie",
+      "variants": {
+        "BASE": "ANVL_Valkyrie"
+      }
+    },
+    "ARGO_ATLS": {
+      "manufacturer": "ARGO",
+      "name": "Atls",
+      "variants": {
+        "BASE": "ARGO_ATLS",
+        "GEO": "ARGO_ATLS_GEO",
+        "GEO_IKTI": "ARGO_ATLS_GEO_IKTI",
+        "IKTI": "ARGO_ATLS_IKTI",
+        "IKTI_ARGOS": "ARGO_ATLS_IKTI_ARGOS"
+      }
+    },
+    "ARGO_ATLS_GEO_COLLECTOR": {
+      "manufacturer": "ARGO",
+      "name": "Atls Geo Collector",
+      "variants": {
+        "GRAD01": "ARGO_ATLS_GEO_Collector_Grad01",
+        "GRAD02": "ARGO_ATLS_GEO_Collector_Grad02",
+        "GRAD03": "ARGO_ATLS_GEO_Collector_Grad03"
+      }
+    },
+    "ARGO_CSV": {
+      "manufacturer": "ARGO",
+      "name": "Csv",
+      "variants": {
+        "CARGO": "ARGO_CSV_Cargo"
+      }
+    },
+    "ARGO_MOLE": {
+      "manufacturer": "ARGO",
+      "name": "Mole",
+      "variants": {
+        "BASE": "ARGO_MOLE",
+        "CARBON": "ARGO_MOLE_Carbon",
+        "TALUS": "ARGO_MOLE_Talus"
+      }
+    },
+    "ARGO_MPUV": {
+      "manufacturer": "ARGO",
+      "name": "Mpuv",
+      "variants": {
+        "1T": "ARGO_MPUV_1T",
+        "BASE": "ARGO_MPUV",
+        "TRANSPORT": "ARGO_MPUV_Transport"
+      }
+    },
+    "ARGO_RAFT": {
+      "manufacturer": "ARGO",
+      "name": "Raft",
+      "variants": {
+        "BASE": "ARGO_RAFT"
+      }
+    },
+    "ARGO_SRV": {
+      "manufacturer": "ARGO",
+      "name": "Srv",
+      "variants": {
+        "BASE": "ARGO_SRV"
+      }
+    },
+    "BANU_DEFENDER": {
+      "manufacturer": "BANU",
+      "name": "Defender",
+      "variants": {
+        "BASE": "BANU_Defender"
+      }
+    },
+    "CNOU_HOVERQUAD": {
+      "manufacturer": "CNOU",
+      "name": "Hoverquad",
+      "variants": {
+        "BASE": "CNOU_HoverQuad"
+      }
+    },
+    "CNOU_MUSTANG": {
+      "manufacturer": "CNOU",
+      "name": "Mustang",
+      "variants": {
+        "ALPHA": "CNOU_Mustang_Alpha",
+        "ALPHA_CITIZENCON2018": "CNOU_Mustang_Alpha_CitizenCon2018",
+        "BETA": "CNOU_Mustang_Beta",
+        "DELTA": "CNOU_Mustang_Delta",
+        "GAMMA": "CNOU_Mustang_Gamma",
+        "OMEGA": "CNOU_Mustang_Omega"
+      }
+    },
+    "CNOU_NOMAD": {
+      "manufacturer": "CNOU",
+      "name": "Nomad",
+      "variants": {
+        "BASE": "CNOU_Nomad"
+      }
+    },
+    "CRUS_INTREPID": {
+      "manufacturer": "CRUS",
+      "name": "Intrepid",
+      "variants": {
+        "BASE": "CRUS_Intrepid"
+      }
+    },
+    "CRUS_INTREPID_COLLECTOR": {
+      "manufacturer": "CRUS",
+      "name": "Intrepid Collector",
+      "variants": {
+        "INDUST": {
+          "match": "CRUS_Intrepid_Collector_Indust",
+          "configurations": {
+            "CRUSADER_INTREPID_WIKELO_WORK_SPECIAL": "Crusader Intrepid Wikelo Work Special"
+          }
+        }
+      }
+    },
+    "CRUS_SPIRIT": {
+      "manufacturer": "CRUS",
+      "name": "Spirit",
+      "variants": {
+        "A1": "CRUS_Spirit_A1",
+        "C1": "CRUS_Spirit_C1",
+        "C1_CIVILIAN": "CRUS_Spirit_C1_Civilian"
+      }
+    },
+    "CRUS_STAR": {
+      "manufacturer": "CRUS",
+      "name": "Star",
+      "variants": {
+        "RUNNER": "CRUS_Star_Runner"
+      }
+    },
+    "CRUS_STARFIGHTER": {
+      "manufacturer": "CRUS",
+      "name": "Starfighter",
+      "variants": {
+        "INFERNO": "CRUS_Starfighter_Inferno",
+        "ION": "CRUS_Starfighter_Ion"
+      }
+    },
+    "CRUS_STARLIFTER": {
+      "manufacturer": "CRUS",
+      "name": "Starlifter",
+      "variants": {
+        "A2": "CRUS_Starlifter_A2",
+        "C2": "CRUS_Starlifter_C2",
+        "M2": "CRUS_Starlifter_M2"
+      }
+    },
+    "DRAK_BUCCANEER": {
+      "manufacturer": "DRAK",
+      "name": "Buccaneer",
+      "variants": {
+        "BASE": "DRAK_Buccaneer"
+      }
+    },
+    "DRAK_CATERPILLAR": {
+      "manufacturer": "DRAK",
+      "name": "Caterpillar",
+      "variants": {
+        "BASE": "DRAK_Caterpillar",
+        "PIRATE": "DRAK_Caterpillar_Pirate"
+      }
+    },
+    "DRAK_CORSAIR": {
+      "manufacturer": "DRAK",
+      "name": "Corsair",
+      "variants": {
+        "BASE": "DRAK_Corsair",
+        "EXEC_MILITARY": {
+          "match": "DRAK_Corsair_Exec_Military",
+          "configurations": {
+            "CORSAIR_PYAM_EXEC": "Corsair PYAM Exec"
+          }
+        }
+      }
+    },
+    "DRAK_CORSAIR_EXEC_STEALTHINDUSTRIAL": {
+      "manufacturer": "DRAK",
+      "name": "Corsair Exec Stealthindustrial",
+      "variants": {
+        "BASE": {
+          "match": "DRAK_Corsair_Exec_StealthIndustrial",
+          "configurations": {
+            "CORSAIR_PYAM_EXEC": "Corsair PYAM Exec"
+          }
+        }
+      }
+    },
+    "DRAK_CUTLASS": {
+      "manufacturer": "DRAK",
+      "name": "Cutlass",
+      "variants": {
+        "BLACK": "DRAK_Cutlass_Black",
+        "BLACK_EXEC_MILITARY": {
+          "match": "DRAK_Cutlass_Black_Exec_Military",
+          "configurations": {
+            "CUTLASS_BLACK_PYAM_EXEC": "Cutlass Black PYAM Exec"
+          }
+        },
+        "BLACK_EXEC_STEALTH": {
+          "match": "DRAK_Cutlass_Black_Exec_Stealth",
+          "configurations": {
+            "CUTLASS_BLACK_PYAM_EXEC": "Cutlass Black PYAM Exec"
+          }
+        },
+        "BLUE": "DRAK_Cutlass_Blue",
+        "RED": "DRAK_Cutlass_Red",
+        "STEEL": "DRAK_Cutlass_Steel"
+      }
+    },
+    "DRAK_CUTTER": {
+      "manufacturer": "DRAK",
+      "name": "Cutter",
+      "variants": {
+        "BASE": "DRAK_Cutter",
+        "RAMBLER": "DRAK_Cutter_Rambler",
+        "SCOUT": "DRAK_Cutter_Scout"
+      }
+    },
+    "DRAK_DRAGONFLY": {
+      "manufacturer": "DRAK",
+      "name": "Dragonfly",
+      "variants": {
+        "BASE": "DRAK_Dragonfly",
+        "PINK": "DRAK_Dragonfly_Pink",
+        "YELLOW": "DRAK_Dragonfly_Yellow"
+      }
+    },
+    "DRAK_GOLEM": {
+      "manufacturer": "DRAK",
+      "name": "Golem",
+      "variants": {
+        "BASE": "DRAK_Golem"
+      }
+    },
+    "DRAK_GOLEM_COLLECTOR": {
+      "manufacturer": "DRAK",
+      "name": "Golem Collector",
+      "variants": {
+        "INDUST": {
+          "match": "DRAK_Golem_Collector_Indust",
+          "configurations": {
+            "DRAKE_GOLEM_WIKELO_WORK_SPECIAL": "Drake Golem Wikelo Work Special"
+          }
+        }
+      }
+    },
+    "DRAK_HERALD": {
+      "manufacturer": "DRAK",
+      "name": "Herald",
+      "variants": {
+        "BASE": "DRAK_Herald"
+      }
+    },
+    "DRAK_MULE": {
+      "manufacturer": "DRAK",
+      "name": "Mule",
+      "variants": {
+        "BASE": "DRAK_Mule"
+      }
+    },
+    "DRAK_VULTURE": {
+      "manufacturer": "DRAK",
+      "name": "Vulture",
+      "variants": {
+        "BASE": "DRAK_Vulture"
+      }
+    },
+    "ESPR_BLADE": {
+      "manufacturer": "ESPR",
+      "name": "Blade",
+      "variants": {
+        "BASE": "VNCL_Blade"
+      }
+    },
+    "ESPR_GLAIVE": {
+      "manufacturer": "ESPR",
+      "name": "Glaive",
+      "variants": {
+        "BASE": "VNCL_Glaive"
+      }
+    },
+    "ESPR_PROWLER": {
+      "manufacturer": "ESPR",
+      "name": "Prowler",
+      "variants": {
+        "BASE": "ESPR_Prowler",
+        "UTILITY": "ESPR_Prowler_Utility"
+      }
+    },
+    "ESPR_SCYTHE": {
+      "manufacturer": "ESPR",
+      "name": "Scythe",
+      "variants": {
+        "BASE": "VNCL_Scythe"
+      }
+    },
+    "ESPR_TALON": {
+      "manufacturer": "ESPR",
+      "name": "Talon",
+      "variants": {
+        "BASE": "ESPR_Talon",
+        "SHRIKE": "ESPR_Talon_Shrike"
+      }
+    },
+    "GAM_SYULEN": {
+      "manufacturer": "GAM",
+      "name": "Syulen",
+      "variants": {
+        "BASE": "GAMA_Syulen",
+        "EXEC_MILITARY": {
+          "match": "GAMA_Syulen_Exec_Military",
+          "configurations": {
+            "SYULEN_PYAM_EXEC": "Syulen PYAM Exec"
+          }
+        },
+        "EXEC_STEALTH": {
+          "match": "GAMA_Syulen_Exec_Stealth",
+          "configurations": {
+            "SYULEN_PYAM_EXEC": "Syulen PYAM Exec"
+          }
+        }
+      }
+    },
+    "GRIN_MTC": {
+      "manufacturer": "GRIN",
+      "name": "Mtc",
+      "variants": {
+        "BASE": "GRIN_MTC"
+      }
+    },
+    "GRIN_PTV": {
+      "manufacturer": "GRIN",
+      "name": "Ptv",
+      "variants": {
+        "BASE": "GRIN_PTV"
+      }
+    },
+    "GRIN_ROC": {
+      "manufacturer": "GRIN",
+      "name": "Roc",
+      "variants": {
+        "BASE": "GRIN_ROC",
+        "DS": "GRIN_ROC_DS"
+      }
+    },
+    "GRIN_STV": {
+      "manufacturer": "GRIN",
+      "name": "Stv",
+      "variants": {
+        "BASE": "GRIN_STV"
+      }
+    },
+    "KRI_L21": {
+      "manufacturer": "KRI",
+      "name": "L21",
+      "variants": {
+        "WOLF": "KRIG_L21_Wolf"
+      }
+    },
+    "KRI_P52": {
+      "manufacturer": "KRI",
+      "name": "P52",
+      "variants": {
+        "MERLIN": "KRIG_P52_Merlin"
+      }
+    },
+    "KRI_P72": {
+      "manufacturer": "KRI",
+      "name": "P72",
+      "variants": {
+        "ARCHIMEDES": "KRIG_P72_Archimedes",
+        "ARCHIMEDES_EMERALD": "KRIG_P72_Archimedes_Emerald"
+      }
+    },
+    "MIS_FORTUNE": {
+      "manufacturer": "MIS",
+      "name": "Fortune",
+      "variants": {
+        "BASE": "MISC_Fortune"
+      }
+    },
+    "MIS_FORTUNE_COLLECTOR": {
+      "manufacturer": "MIS",
+      "name": "Fortune Collector",
+      "variants": {
+        "INDUSTRIAL": {
+          "match": "MISC_Fortune_Collector_Industrial",
+          "configurations": {
+            "MISC_FORTUNE_WIKELO_SPECIAL": "MISC Fortune Wikelo Special"
+          }
+        }
+      }
+    },
+    "MIS_FREELANCER": {
+      "manufacturer": "MIS",
+      "name": "Freelancer",
+      "variants": {
+        "BASE": "MISC_Freelancer",
+        "DUR": "MISC_Freelancer_DUR",
+        "MAX": "MISC_Freelancer_MAX"
+      }
+    },
+    "MIS_FREELANCER_MIS": {
+      "manufacturer": "MIS",
+      "name": "Freelancer Mis",
+      "variants": {
+        "BASE": "MISC_Freelancer_MIS"
+      }
+    },
+    "MIS_FURY": {
+      "manufacturer": "MIS",
+      "name": "Fury",
+      "variants": {
+        "BASE": "MISC_Fury",
+        "LX": "MISC_Fury_LX",
+        "MIRU": "MISC_Fury_Miru"
+      }
+    },
+    "MIS_GUARDIAN": {
+      "manufacturer": "MIS",
+      "name": "Guardian",
+      "variants": {
+        "BASE": "MRAI_Guardian",
+        "MILITARY": {
+          "match": "MRAI_Guardian_Military",
+          "configurations": {
+            "MIRAI_GUARDIAN_WIKELO_WAR_SPECIAL": "Mirai Guardian Wikelo War Special"
+          }
+        },
+        "MX": "MRAI_Guardian_MX",
+        "QI": "MRAI_Guardian_QI"
+      }
+    },
+    "MIS_GUARDIAN_QI_COLLECTOR": {
+      "manufacturer": "MIS",
+      "name": "Guardian Qi Collector",
+      "variants": {
+        "INDUST": {
+          "match": "MRAI_Guardian_QI_Collector_Indust",
+          "configurations": {
+            "MIRAI_GUARDIAN_QI_WIKELO_SPECIAL": "Mirai Guardian QI Wikelo Special"
+          }
+        }
+      }
+    },
+    "MIS_HULL": {
+      "manufacturer": "MIS",
+      "name": "Hull",
+      "variants": {
+        "A": "MISC_Hull_A",
+        "C": "MISC_Hull_C"
+      }
+    },
+    "MIS_PROSPECTOR": {
+      "manufacturer": "MIS",
+      "name": "Prospector",
+      "variants": {
+        "BASE": "MISC_Prospector"
+      }
+    },
+    "MIS_PULSE": {
+      "manufacturer": "MIS",
+      "name": "Pulse",
+      "variants": {
+        "BASE": "MRAI_Pulse",
+        "LX": "MRAI_Pulse_LX"
+      }
+    },
+    "MIS_RAZOR": {
+      "manufacturer": "MIS",
+      "name": "Razor",
+      "variants": {
+        "BASE": "MISC_Razor",
+        "EX": "MISC_Razor_EX",
+        "LX": "MISC_Razor_LX"
+      }
+    },
+    "MIS_RELIANT": {
+      "manufacturer": "MIS",
+      "name": "Reliant",
+      "variants": {
+        "BASE": "MISC_Reliant",
+        "MAKO": "MISC_Reliant_Mako",
+        "SEN": "MISC_Reliant_Sen",
+        "TANA": "MISC_Reliant_Tana"
+      }
+    },
+    "MIS_STARFARER": {
+      "manufacturer": "MIS",
+      "name": "Starfarer",
+      "variants": {
+        "BASE": "MISC_Starfarer",
+        "GEMINI": "MISC_Starfarer_Gemini"
+      }
+    },
+    "MIS_STARLANCER": {
+      "manufacturer": "MIS",
+      "name": "Starlancer",
+      "variants": {
+        "MAX": "MISC_Starlancer_Max",
+        "TAC": "MISC_Starlancer_TAC"
+      }
+    },
+    "MIS_STARLANCER_MAX_COLLECTOR": {
+      "manufacturer": "MIS",
+      "name": "Starlancer Max Collector",
+      "variants": {
+        "INDUST": {
+          "match": "MISC_Starlancer_Max_Collector_Indust",
+          "configurations": {
+            "MISC_STARLANCER_MAX_WIKELO_WORK_SPECIAL": "MISC Starlancer MAX Wikelo Work Special"
+          }
+        }
+      }
+    },
+    "MIS_STARLANCER_TAC_COLLECTOR": {
+      "manufacturer": "MIS",
+      "name": "Starlancer Tac Collector",
+      "variants": {
+        "MILITARY": {
+          "match": "MISC_Starlancer_TAC_Collector_Military",
+          "configurations": {
+            "MISC_STARLANCER_TAC_WIKELO_WAR_SPECIAL": "MISC Starlancer TAC Wikelo War Special"
+          }
+        }
+      }
+    },
+    "ORIG_100I": {
+      "manufacturer": "ORIG",
+      "name": "100i",
+      "variants": {
+        "100I": "ORIG_100i",
+        "125A": "ORIG_125a",
+        "135C": "ORIG_135c"
+      }
+    },
+    "ORIG_300I": {
+      "manufacturer": "ORIG",
+      "name": "300i",
+      "variants": {
+        "300I": "ORIG_300i",
+        "315P": "ORIG_315p",
+        "325A": "ORIG_325a",
+        "350R": "ORIG_350r"
+      }
+    },
+    "ORIG_400I": {
+      "manufacturer": "ORIG",
+      "name": "400i",
+      "variants": {
+        "400I": "ORIG_400i"
+      }
+    },
+    "ORIG_600I": {
+      "manufacturer": "ORIG",
+      "name": "600i",
+      "variants": {
+        "EXPLORER": "ORIG_600i",
+        "TOURING": "ORIG_600i_Touring",
+        "EXECUTIVE_EDITION": "ORIG_600i_Executive_Edition"
+      }
+    },
+    "ORIG_85X": {
+      "manufacturer": "ORIG",
+      "name": "85x",
+      "variants": {
+        "BASE": "ORIG_85X"
+      }
+    },
+    "ORIG_890JUMP": {
+      "manufacturer": "ORIG",
+      "name": "890jump",
+      "variants": {
+        "BASE": "ORIG_890Jump"
+      }
+    },
+    "ORIG_M50": {
+      "manufacturer": "ORIG",
+      "name": "M50",
+      "variants": {
+        "BASE": "ORIG_m50"
+      }
+    },
+    "ORIG_X1": {
+      "manufacturer": "ORIG",
+      "name": "X1",
+      "variants": {
+        "BASE": "ORIG_X1",
+        "FORCE": "ORIG_X1_Force",
+        "VELOCITY": "ORIG_X1_Velocity"
+      }
+    },
+    "POWERSUIT_HULL": {
+      "manufacturer": "POWERSUIT",
+      "name": "Hull",
+      "variants": {
+        "BASE": "PowerSuit"
+      }
+    },
+    "RSI_APOLLO": {
+      "manufacturer": "RSI",
+      "name": "Apollo",
+      "variants": {
+        "MEDIVAC": "RSI_Apollo_Medivac",
+        "TRIAGE": "RSI_Apollo_Triage"
+      }
+    },
+    "RSI_AURORA": {
+      "manufacturer": "RSI",
+      "name": "Aurora",
+      "variants": {
+        "CL": "RSI_Aurora_CL",
+        "ES": "RSI_Aurora_ES",
+        "LN": "RSI_Aurora_LN",
+        "LX": "RSI_Aurora_LX",
+        "MR": "RSI_Aurora_MR"
+      }
+    },
+    "RSI_CONSTELLATION": {
+      "manufacturer": "RSI",
+      "name": "Constellation",
+      "variants": {
+        "ANDROMEDA": "RSI_Constellation_Andromeda",
+        "AQUILA": "RSI_Constellation_Aquila",
+        "PHOENIX": "RSI_Constellation_Phoenix",
+        "PHOENIX_EMERALD": "RSI_Constellation_Phoenix_Emerald",
+        "TAURUS": "RSI_Constellation_Taurus",
+        "TAURUS_MILITARY": {
+          "match": "RSI_Constellation_Taurus_Military",
+          "configurations": {
+            "RSI_CONSTELLATION_TAURUS_WIKELO_WAR_SPECIAL": "RSI Constellation Taurus Wikelo War Special"
+          }
+        }
+      }
+    },
+    "RSI_LYNX": {
+      "manufacturer": "RSI",
+      "name": "Lynx",
+      "variants": {
+        "BASE": "RSI_Lynx"
+      }
+    },
+    "RSI_MANTIS": {
+      "manufacturer": "RSI",
+      "name": "Mantis",
+      "variants": {
+        "BASE": "RSI_Mantis"
+      }
+    },
+    "RSI_METEOR": {
+      "manufacturer": "RSI",
+      "name": "Meteor",
+      "variants": {
+        "BASE": "RSI_Meteor"
+      }
+    },
+    "RSI_POLARIS": {
+      "manufacturer": "RSI",
+      "name": "Polaris",
+      "variants": {
+        "BASE": "RSI_Polaris"
+      }
+    },
+    "RSI_POLARIS_COLLECTOR": {
+      "manufacturer": "RSI",
+      "name": "Polaris Collector",
+      "variants": {
+        "MILITARY": "RSI_Polaris_Collector_Military"
+      }
+    },
+    "RSI_SCORPIUS": {
+      "manufacturer": "RSI",
+      "name": "Scorpius",
+      "variants": {
+        "ANTARES": "RSI_Scorpius_Antares",
+        "BASE": "RSI_Scorpius",
+        "STEALTH": {
+          "match": "RSI_Scorpius_Stealth",
+          "configurations": {
+            "RSI_SCORPIUS_WIKELO_SNEAK_SPECIAL": "RSI Scorpius Wikelo Sneak Special"
+          }
+        }
+      }
+    },
+    "RSI_URSA": {
+      "manufacturer": "RSI",
+      "name": "Ursa",
+      "variants": {
+        "MEDIVAC": "RSI_Ursa_Medivac",
+        "MEDIVAC_STEALTH": {
+          "match": "RSI_Ursa_Medivac_Stealth",
+          "configurations": {
+            "RSI_URSA_MEDIVAC_WIKELO_SPECIAL": "RSI Ursa Medivac Wikelo Special"
+          }
+        },
+        "ROVER": "RSI_Ursa_Rover"
+      }
+    },
+    "RSI_ZEUS": {
+      "manufacturer": "RSI",
+      "name": "Zeus",
+      "variants": {
+        "CL": "RSI_Zeus_CL",
+        "ES": "RSI_Zeus_ES",
+        "MR": "RSI_Zeus_MR"
+      }
+    },
+    "TMBL_CYCLONE": {
+      "manufacturer": "TMBL",
+      "name": "Cyclone",
+      "variants": {
+        "AA": "TMBL_Cyclone_AA",
+        "BASE": "TMBL_Cyclone",
+        "MT": "TMBL_Cyclone_MT",
+        "RC": "TMBL_Cyclone_RC",
+        "RN": "TMBL_Cyclone_RN",
+        "TR": "TMBL_Cyclone_TR"
+      }
+    },
+    "TMBL_NOVA": {
+      "manufacturer": "TMBL",
+      "name": "Nova",
+      "variants": {
+        "BASE": "TMBL_Nova"
+      }
+    },
+    "TMBL_STORM": {
+      "manufacturer": "TMBL",
+      "name": "Storm",
+      "variants": {
+        "AA": "TMBL_Storm_AA",
+        "BASE": "TMBL_Storm"
+      }
+    },
+    "XNAA_NOX": {
+      "manufacturer": "XNAA",
+      "name": "Nox",
+      "variants": {
+        "BASE": "XIAN_Nox",
+        "KUE": "XIAN_Nox_Kue"
+      }
+    },
+    "XNAA_NOX_COLLECTOR": {
+      "manufacturer": "XNAA",
+      "name": "Nox Collector",
+      "variants": {
+        "MOD": {
+          "match": "XIAN_Nox_Collector_Mod",
+          "configurations": {
+            "AOPOA_NOX_WIKELO_SPECIAL": "Aopoa Nox Wikelo Special"
+          }
+        }
+      }
+    },
+    "XNAA_SANTOKYAI": {
+      "manufacturer": "XNAA",
+      "name": "Santokyai",
+      "variants": {
+        "BASE": "XNAA_SanTokYai"
+      }
+    },
+    "XNAA_SCOUT": {
+      "manufacturer": "XNAA",
+      "name": "Scout",
+      "variants": {
+        "BASE": "XIAN_Scout"
+      }
+    }
+  }
+}
