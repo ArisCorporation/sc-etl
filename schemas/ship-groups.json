@@ -87,33 +87,25 @@
       "variants": {
         "BASE": "AEGS_Sabre",
         "COMET": "AEGS_Sabre_Comet",
-        "FIREBIRD": "AEGS_Sabre_Firebird",
-        "PEREGRINE": "AEGS_Sabre_Peregrine",
+        "FIREBIRD": {
+          "match": "AEGS_Sabre_Firebird",
+          "configurations": {
+            "AEGIS_SABRE_FIREBIRD_WIKELO_WAR_SPECIAL": {
+              "name": "Aegis Sabre Firebird Wikelo War Special",
+              "ship_variant_ids": ["AEGS_SABRE_FIREBIRD_COLLECTOR_MILT"]
+            }
+          }
+        },
+        "PEREGRINE": {
+          "match": "AEGS_Sabre_Peregrine",
+          "configurations": {
+            "AEGIS_SABRE_PEREGRINE_WIKELO_SPEEDY_SPECIAL": {
+              "name": "Aegis Sabre Peregrine Wikelo Speedy Special",
+              "ship_variant_ids": ["AEGS_SABRE_PEREGRINE_COLLECTOR_COMPETITION"]
+            }
+          }
+        },
         "RAVEN": "AEGS_Sabre_Raven"
-      }
-    },
-    "AEG_SABRE_FIREBIRD_COLLECTOR": {
-      "manufacturer": "AEG",
-      "name": "Sabre Firebird Collector",
-      "variants": {
-        "MILT": {
-          "match": "AEGS_Sabre_Firebird_Collector_Milt",
-          "configurations": {
-            "AEGIS_SABRE_FIREBIRD_WIKELO_WAR_SPECIAL": "Aegis Sabre Firebird Wikelo War Special"
-          }
-        }
-      }
-    },
-    "AEG_SABRE_PEREGRINE_COLLECTOR": {
-      "manufacturer": "AEG",
-      "name": "Sabre Peregrine Collector",
-      "variants": {
-        "COMPETITION": {
-          "match": "AEGS_Sabre_Peregrine_Collector_Competition",
-          "configurations": {
-            "AEGIS_SABRE_PEREGRINE_WIKELO_SPEEDY_SPECIAL": "Aegis Sabre Peregrine Wikelo Speedy Special"
-          }
-        }
       }
     },
     "AEG_VANGUARD": {
@@ -202,7 +194,15 @@
       "name": "Hornet",
       "variants": {
         "F7C": "ANVL_Hornet_F7C",
-        "F7C_MK2": "ANVL_Hornet_F7C_Mk2",
+        "F7C_MK2": {
+          "match": "ANVL_Hornet_F7C_Mk2",
+          "configurations": {
+            "ANVIL_F7_HORNET_MK_WIKELO": {
+              "name": "Anvil F7 Hornet Mk Wikelo",
+              "ship_variant_ids": ["ANVL_HORNET_F7_MK2_COLLECTOR_MOD"]
+            }
+          }
+        },
         "F7C_WILDFIRE": "ANVL_Hornet_F7C_Wildfire",
         "F7CM": "ANVL_Hornet_F7CM",
         "F7CM_HEARTSEEKER": "ANVL_Hornet_F7CM_Heartseeker",
@@ -214,34 +214,22 @@
         "F7CS_MK2": "ANVL_Hornet_F7CS_Mk2"
       }
     },
-    "ANVL_HORNET_F7_MK2_COLLECTOR": {
-      "manufacturer": "ANVL",
-      "name": "Hornet F7 Mk2 Collector",
-      "variants": {
-        "MOD": {
-          "match": "ANVL_Hornet_F7_Mk2_Collector_Mod",
-          "configurations": {
-            "ANVIL_F7_HORNET_MK_WIKELO": "Anvil F7 Hornet Mk Wikelo"
-          }
-        }
-      }
-    },
     "ANVL_HORNET_F7A": {
       "manufacturer": "ANVL",
       "name": "Hornet F7a",
       "variants": {
         "MK1": "ANVL_Hornet_F7A_Mk1",
-        "MK2": "ANVL_Hornet_F7A_Mk2",
-        "MK2_EXEC_MILITARY": {
-          "match": "ANVL_Hornet_F7A_Mk2_Exec_Military",
+        "MK2": {
+          "match": "ANVL_Hornet_F7A_Mk2",
           "configurations": {
-            "HORNET_F7A_MK_II_PYAM_EXEC": "Hornet F7A Mk II PYAM Exec"
-          }
-        },
-        "MK2_EXEC_STEALTH": {
-          "match": "ANVL_Hornet_F7A_Mk2_Exec_Stealth",
-          "configurations": {
-            "HORNET_F7A_MK_II_PYAM_EXEC": "Hornet F7A Mk II PYAM Exec"
+            "ANVL_HORNET_F7A_MK2_EXEC_MILITARY": {
+              "name": "Hornet F7A Mk II PYAM Exec (Military)",
+              "ship_variant_ids": ["ANVL_HORNET_F7A_MK2_EXEC_MILITARY"]
+            },
+            "ANVL_HORNET_F7A_MK2_EXEC_STEALTH": {
+              "name": "Hornet F7A Mk II PYAM Exec (Stealth)",
+              "ship_variant_ids": ["ANVL_HORNET_F7A_MK2_EXEC_STEALTH"]
+            }
           }
         }
       }
@@ -258,37 +246,25 @@
       "name": "Lightning",
       "variants": {
         "F8": "ANVL_Lightning_F8",
-        "F8C": "ANVL_Lightning_F8C",
-        "F8C_EXEC": "ANVL_Lightning_F8C_Exec",
-        "F8C_EXEC_MILITARY": {
-          "match": "ANVL_Lightning_F8C_Exec_Military",
+        "F8C": {
+          "match": "ANVL_Lightning_F8C",
           "configurations": {
-            "F8C_LIGHTNING_PYAM_EXEC": "F8C Lightning PYAM Exec"
-          }
-        },
-        "F8C_EXEC_STEALTH": {
-          "match": "ANVL_Lightning_F8C_Exec_Stealth",
-          "configurations": {
-            "F8C_LIGHTNING_PYAM_EXEC": "F8C Lightning PYAM Exec"
-          }
-        },
-        "F8C_PLAT": "ANVL_Lightning_F8C_Plat"
-      }
-    },
-    "ANVL_LIGHTNING_F8C_COLLECTOR": {
-      "manufacturer": "ANVL",
-      "name": "Lightning F8c Collector",
-      "variants": {
-        "MILITARY": {
-          "match": "ANVL_Lightning_F8C_Collector_Military",
-          "configurations": {
-            "ANVIL_F8C_LIGHTNING_WIKELO_WAR_SPECIAL": "Anvil F8C Lightning Wikelo War Special"
-          }
-        },
-        "STEALTH": {
-          "match": "ANVL_Lightning_F8C_Collector_Stealth",
-          "configurations": {
-            "ANVIL_F8C_LIGHTNING_WIKELO_SNEAK_SPECIAL": "Anvil F8C Lightning Wikelo Sneak Special"
+            "ANVIL_F8C_LIGHTNING_WIKELO_WAR_SPECIAL": {
+              "name": "Anvil F8C Lightning Wikelo War Special",
+              "ship_variant_ids": ["ANVL_LIGHTNING_F8C_COLLECTOR_MILITARY"]
+            },
+            "ANVIL_F8C_LIGHTNING_WIKELO_SNEAK_SPECIAL": {
+              "name": "Anvil F8C Lightning Wikelo Sneak Special",
+              "ship_variant_ids": ["ANVL_LIGHTNING_F8C_COLLECTOR_STEALTH"]
+            },
+            "ANVIL_F8C_LIGHTNING_EXEC_MILITARY": {
+              "name": "Anvil F8C Lightning Exec Military",
+              "ship_variant_ids": ["ANVL_LIGHTNING_F8C_EXEC_MILITARY"]
+            },
+            "ANVIL_F8C_LIGHTNING_EXEC_STEALTH": {
+              "name": "Anvil F8C Lightning Exec Stealth",
+              "ship_variant_ids": ["ANVL_LIGHTNING_F8C_EXEC_STEALTH"]
+            }
           }
         }
       }
@@ -305,17 +281,13 @@
       "name": "Terrapin",
       "variants": {
         "BASE": "ANVL_Terrapin",
-        "MEDIC": "ANVL_Terrapin_Medic"
-      }
-    },
-    "ANVL_TERRAPIN_MEDIC_COLLECTOR": {
-      "manufacturer": "ANVL",
-      "name": "Terrapin Medic Collector",
-      "variants": {
         "MEDIC": {
-          "match": "ANVL_Terrapin_Medic_Collector_Medic",
+          "match": "ANVL_Terrapin_Medic",
           "configurations": {
-            "ANVIL_TERRAPIN_MEDIC_WIKELO_SAVIOR_SPECIAL": "Anvil Terrapin Medic Wikelo Savior Special"
+            "ANVIL_TERRAPIN_MEDIC_WIKELO_SAVIOR_SPECIAL": {
+              "name": "Anvil Terrapin Medic Wikelo Savior Special",
+              "ship_variant_ids": ["ANVL_TERRAPIN_MEDIC_COLLECTOR_MEDIC"]
+            }
           }
         }
       }
@@ -332,19 +304,26 @@
       "name": "Atls",
       "variants": {
         "BASE": "ARGO_ATLS",
-        "GEO": "ARGO_ATLS_GEO",
+        "GEO": {
+          "match": "ARGO_ATLS_GEO",
+          "configurations": {
+            "ARGO_ATLS_GEO_COLLECTOR_GRAD01": {
+              "name": "Argo ATLS GEO Collector Grad01",
+              "ship_variant_ids": ["ARGO_ATLS_GEO_COLLECTOR_GRAD01"]
+            },
+            "ARGO_ATLS_GEO_COLLECTOR_GRAD02": {
+              "name": "Argo ATLS GEO Collector Grad02",
+              "ship_variant_ids": ["ARGO_ATLS_GEO_COLLECTOR_GRAD02"]
+            },
+            "ARGO_ATLS_GEO_COLLECTOR_GRAD03": {
+              "name": "Argo ATLS GEO Collector Grad03",
+              "ship_variant_ids": ["ARGO_ATLS_GEO_COLLECTOR_GRAD03"]
+            }
+          }
+        },
         "GEO_IKTI": "ARGO_ATLS_GEO_IKTI",
         "IKTI": "ARGO_ATLS_IKTI",
         "IKTI_ARGOS": "ARGO_ATLS_IKTI_ARGOS"
-      }
-    },
-    "ARGO_ATLS_GEO_COLLECTOR": {
-      "manufacturer": "ARGO",
-      "name": "Atls Geo Collector",
-      "variants": {
-        "GRAD01": "ARGO_ATLS_GEO_Collector_Grad01",
-        "GRAD02": "ARGO_ATLS_GEO_Collector_Grad02",
-        "GRAD03": "ARGO_ATLS_GEO_Collector_Grad03"
       }
     },
     "ARGO_CSV": {
@@ -423,17 +402,13 @@
       "manufacturer": "CRUS",
       "name": "Intrepid",
       "variants": {
-        "BASE": "CRUS_Intrepid"
-      }
-    },
-    "CRUS_INTREPID_COLLECTOR": {
-      "manufacturer": "CRUS",
-      "name": "Intrepid Collector",
-      "variants": {
-        "INDUST": {
-          "match": "CRUS_Intrepid_Collector_Indust",
+        "BASE": {
+          "match": "CRUS_Intrepid",
           "configurations": {
-            "CRUSADER_INTREPID_WIKELO_WORK_SPECIAL": "Crusader Intrepid Wikelo Work Special"
+            "CRUSADER_INTREPID_WIKELO_WORK_SPECIAL": {
+              "name": "Crusader Intrepid Wikelo Work Special",
+              "ship_variant_ids": ["CRUS_INTREPID_COLLECTOR_INDUST"]
+            }
           }
         }
       }
@@ -490,23 +465,17 @@
       "manufacturer": "DRAK",
       "name": "Corsair",
       "variants": {
-        "BASE": "DRAK_Corsair",
-        "EXEC_MILITARY": {
-          "match": "DRAK_Corsair_Exec_Military",
-          "configurations": {
-            "CORSAIR_PYAM_EXEC": "Corsair PYAM Exec"
-          }
-        }
-      }
-    },
-    "DRAK_CORSAIR_EXEC_STEALTHINDUSTRIAL": {
-      "manufacturer": "DRAK",
-      "name": "Corsair Exec Stealthindustrial",
-      "variants": {
         "BASE": {
-          "match": "DRAK_Corsair_Exec_StealthIndustrial",
+          "match": "DRAK_Corsair",
           "configurations": {
-            "CORSAIR_PYAM_EXEC": "Corsair PYAM Exec"
+            "CORSAIR_EXEC_MILITARY": {
+              "name": "Corsair Exec Military",
+              "ship_variant_ids": ["DRAK_CORSAIR_EXEC_MILITARY"]
+            },
+            "CORSAIR_EXEC_STEALTH": {
+              "name": "Corsair Exec Stealth Industrial",
+              "ship_variant_ids": ["DRAK_CORSAIR_EXEC_STEALTHINDUSTRIAL"]
+            }
           }
         }
       }
@@ -515,17 +484,17 @@
       "manufacturer": "DRAK",
       "name": "Cutlass",
       "variants": {
-        "BLACK": "DRAK_Cutlass_Black",
-        "BLACK_EXEC_MILITARY": {
-          "match": "DRAK_Cutlass_Black_Exec_Military",
+        "BLACK": {
+          "match": "DRAK_Cutlass_Black",
           "configurations": {
-            "CUTLASS_BLACK_PYAM_EXEC": "Cutlass Black PYAM Exec"
-          }
-        },
-        "BLACK_EXEC_STEALTH": {
-          "match": "DRAK_Cutlass_Black_Exec_Stealth",
-          "configurations": {
-            "CUTLASS_BLACK_PYAM_EXEC": "Cutlass Black PYAM Exec"
+            "CUTLASS_BLACK_EXEC_MILITARY": {
+              "name": "Cutlass Black Exec Military",
+              "ship_variant_ids": ["DRAK_CUTLASS_BLACK_EXEC_MILITARY"]
+            },
+            "CUTLASS_BLACK_EXEC_STEALTH": {
+              "name": "Cutlass Black Exec Stealth",
+              "ship_variant_ids": ["DRAK_CUTLASS_BLACK_EXEC_STEALTH"]
+            }
           }
         },
         "BLUE": "DRAK_Cutlass_Blue",
@@ -555,17 +524,13 @@
       "manufacturer": "DRAK",
       "name": "Golem",
       "variants": {
-        "BASE": "DRAK_Golem"
-      }
-    },
-    "DRAK_GOLEM_COLLECTOR": {
-      "manufacturer": "DRAK",
-      "name": "Golem Collector",
-      "variants": {
-        "INDUST": {
-          "match": "DRAK_Golem_Collector_Indust",
+        "BASE": {
+          "match": "DRAK_Golem",
           "configurations": {
-            "DRAKE_GOLEM_WIKELO_WORK_SPECIAL": "Drake Golem Wikelo Work Special"
+            "DRAKE_GOLEM_WIKELO_WORK_SPECIAL": {
+              "name": "Drake Golem Wikelo Work Special",
+              "ship_variant_ids": ["DRAK_GOLEM_COLLECTOR_INDUST"]
+            }
           }
         }
       }
@@ -702,17 +667,13 @@
       "manufacturer": "MIS",
       "name": "Fortune",
       "variants": {
-        "BASE": "MISC_Fortune"
-      }
-    },
-    "MIS_FORTUNE_COLLECTOR": {
-      "manufacturer": "MIS",
-      "name": "Fortune Collector",
-      "variants": {
-        "INDUSTRIAL": {
-          "match": "MISC_Fortune_Collector_Industrial",
+        "BASE": {
+          "match": "MISC_Fortune",
           "configurations": {
-            "MISC_FORTUNE_WIKELO_SPECIAL": "MISC Fortune Wikelo Special"
+            "MISC_FORTUNE_WIKELO_SPECIAL": {
+              "name": "MISC Fortune Wikelo Special",
+              "ship_variant_ids": ["MISC_FORTUNE_COLLECTOR_INDUSTRIAL"]
+            }
           }
         }
       }
@@ -750,21 +711,20 @@
         "MILITARY": {
           "match": "MRAI_Guardian_Military",
           "configurations": {
-            "MIRAI_GUARDIAN_WIKELO_WAR_SPECIAL": "Mirai Guardian Wikelo War Special"
+            "MIRAI_GUARDIAN_WIKELO_WAR_SPECIAL": {
+              "name": "Mirai Guardian Wikelo War Special",
+              "ship_variant_ids": ["MRAI_GUARDIAN_MILITARY"]
+            }
           }
         },
         "MX": "MRAI_Guardian_MX",
-        "QI": "MRAI_Guardian_QI"
-      }
-    },
-    "MIS_GUARDIAN_QI_COLLECTOR": {
-      "manufacturer": "MIS",
-      "name": "Guardian Qi Collector",
-      "variants": {
-        "INDUST": {
-          "match": "MRAI_Guardian_QI_Collector_Indust",
+        "QI": {
+          "match": "MRAI_Guardian_QI",
           "configurations": {
-            "MIRAI_GUARDIAN_QI_WIKELO_SPECIAL": "Mirai Guardian QI Wikelo Special"
+            "MIRAI_GUARDIAN_QI_WIKELO_SPECIAL": {
+              "name": "Mirai Guardian QI Wikelo Special",
+              "ship_variant_ids": ["MRAI_GUARDIAN_QI_COLLECTOR_INDUST"]
+            }
           }
         }
       }
@@ -823,30 +783,22 @@
       "manufacturer": "MIS",
       "name": "Starlancer",
       "variants": {
-        "MAX": "MISC_Starlancer_Max",
-        "TAC": "MISC_Starlancer_TAC"
-      }
-    },
-    "MIS_STARLANCER_MAX_COLLECTOR": {
-      "manufacturer": "MIS",
-      "name": "Starlancer Max Collector",
-      "variants": {
-        "INDUST": {
-          "match": "MISC_Starlancer_Max_Collector_Indust",
+        "MAX": {
+          "match": "MISC_Starlancer_Max",
           "configurations": {
-            "MISC_STARLANCER_MAX_WIKELO_WORK_SPECIAL": "MISC Starlancer MAX Wikelo Work Special"
+            "MISC_STARLANCER_MAX_WIKELO_WORK_SPECIAL": {
+              "name": "MISC Starlancer MAX Wikelo Work Special",
+              "ship_variant_ids": ["MISC_STARLANCER_MAX_COLLECTOR_INDUST"]
+            }
           }
-        }
-      }
-    },
-    "MIS_STARLANCER_TAC_COLLECTOR": {
-      "manufacturer": "MIS",
-      "name": "Starlancer Tac Collector",
-      "variants": {
-        "MILITARY": {
-          "match": "MISC_Starlancer_TAC_Collector_Military",
+        },
+        "TAC": {
+          "match": "MISC_Starlancer_TAC",
           "configurations": {
-            "MISC_STARLANCER_TAC_WIKELO_WAR_SPECIAL": "MISC Starlancer TAC Wikelo War Special"
+            "MISC_STARLANCER_TAC_WIKELO_WAR_SPECIAL": {
+              "name": "MISC Starlancer TAC Wikelo War Special",
+              "ship_variant_ids": ["MISC_STARLANCER_TAC_COLLECTOR_MILITARY"]
+            }
           }
         }
       }
@@ -984,14 +936,15 @@
       "manufacturer": "RSI",
       "name": "Polaris",
       "variants": {
-        "BASE": "RSI_Polaris"
-      }
-    },
-    "RSI_POLARIS_COLLECTOR": {
-      "manufacturer": "RSI",
-      "name": "Polaris Collector",
-      "variants": {
-        "MILITARY": "RSI_Polaris_Collector_Military"
+        "BASE": {
+          "match": "RSI_Polaris",
+          "configurations": {
+            "RSI_POLARIS_WIKELO_WAR_SPECIAL": {
+              "name": "RSI Polaris Wikelo War Special",
+              "ship_variant_ids": ["RSI_POLARIS_COLLECTOR_MILITARY"]
+            }
+          }
+        }
       }
     },
     "RSI_SCORPIUS": {
@@ -1003,7 +956,10 @@
         "STEALTH": {
           "match": "RSI_Scorpius_Stealth",
           "configurations": {
-            "RSI_SCORPIUS_WIKELO_SNEAK_SPECIAL": "RSI Scorpius Wikelo Sneak Special"
+            "RSI_SCORPIUS_WIKELO_SNEAK_SPECIAL": {
+              "name": "RSI Scorpius Wikelo Sneak Special",
+              "ship_variant_ids": ["RSI_SCORPIUS_STEALTH"]
+            }
           }
         }
       }
@@ -1012,11 +968,13 @@
       "manufacturer": "RSI",
       "name": "Ursa",
       "variants": {
-        "MEDIVAC": "RSI_Ursa_Medivac",
-        "MEDIVAC_STEALTH": {
-          "match": "RSI_Ursa_Medivac_Stealth",
+        "MEDIVAC": {
+          "match": "RSI_Ursa_Medivac",
           "configurations": {
-            "RSI_URSA_MEDIVAC_WIKELO_SPECIAL": "RSI Ursa Medivac Wikelo Special"
+            "RSI_URSA_MEDIVAC_WIKELO_SPECIAL": {
+              "name": "RSI Ursa Medivac Wikelo Special",
+              "ship_variant_ids": ["RSI_URSA_MEDIVAC_STEALTH"]
+            }
           }
         },
         "ROVER": "RSI_Ursa_Rover"
@@ -1062,20 +1020,16 @@
       "manufacturer": "XNAA",
       "name": "Nox",
       "variants": {
-        "BASE": "XIAN_Nox",
-        "KUE": "XIAN_Nox_Kue"
-      }
-    },
-    "XNAA_NOX_COLLECTOR": {
-      "manufacturer": "XNAA",
-      "name": "Nox Collector",
-      "variants": {
-        "MOD": {
-          "match": "XIAN_Nox_Collector_Mod",
+        "BASE": {
+          "match": "XIAN_Nox",
           "configurations": {
-            "AOPOA_NOX_WIKELO_SPECIAL": "Aopoa Nox Wikelo Special"
+            "AOPOA_NOX_WIKELO_SPECIAL": {
+              "name": "Aopoa Nox Wikelo Special",
+              "ship_variant_ids": ["XIAN_NOX_COLLECTOR_MOD"]
+            }
           }
-        }
+        },
+        "KUE": "XIAN_Nox_Kue"
       }
     },
     "XNAA_SANTOKYAI": {
