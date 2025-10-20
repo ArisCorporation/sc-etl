@@ -10,7 +10,10 @@ interface RawHullConfig {
 
 interface VariantConfiguration {
   code: string;
-  match: string;
+  name?: string;
+  match?: string;
+  shipVariantIds: string[];
+  profiles: string[];
 }
 
 interface NormalizedVariantConfig {
@@ -32,6 +35,8 @@ export interface VariantAssignment extends HullDefinition {
   variantCode: CanonicalVariantCode;
   names: string[];
   editions: string[];
+  matchIds: string[];
+  shipVariantIds: string[];
   configurations: VariantConfiguration[];
 }
 
@@ -117,7 +122,9 @@ function normalizeVariant(input: unknown): NormalizedVariantConfig {
 
   const shipVariantIds = dedupeStrings(
     collectStrings(record.ship_variant_ids ?? record.shipVariantIds)
-  );
+  )
+    .map((id) => sanitizeToken(id) ?? id)
+    .filter((id): id is string => Boolean(id));
   const variantCodes = dedupeStrings(
     collectStrings(
       record.ship_variant_codes ??
@@ -135,12 +142,44 @@ function normalizeVariant(input: unknown): NormalizedVariantConfig {
   const configurations: VariantConfiguration[] = [];
   const rawConfigurations = record.configurations;
   if (rawConfigurations && typeof rawConfigurations === 'object' && !Array.isArray(rawConfigurations)) {
-    for (const [rawCode, rawMatch] of Object.entries(rawConfigurations as Record<string, unknown>)) {
-      const match = toString(rawMatch);
-      if (!match) continue;
-      const code = sanitizeToken(rawCode) ?? sanitizeToken(match);
+    for (const [rawCode, rawValue] of Object.entries(rawConfigurations as Record<string, unknown>)) {
+      const code = sanitizeToken(rawCode) ?? sanitizeToken(toString(rawValue));
       if (!code) continue;
-      configurations.push({ code, match });
+
+      if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+        const configRecord = rawValue as Record<string, unknown>;
+        const name = toString(configRecord.name ?? configRecord.label ?? configRecord.display ?? rawCode);
+        const match = toString(configRecord.match ?? configRecord.class ?? configRecord.id);
+        const configShipVariantIds = dedupeStrings(
+          collectStrings(
+            configRecord.ship_variant_ids ??
+              configRecord.shipVariantIds ??
+              configRecord.ids ??
+              configRecord.match
+          )
+        )
+          .map((id) => sanitizeToken(id) ?? id)
+          .filter((id): id is string => Boolean(id));
+        const profiles = dedupeStrings(collectStrings(configRecord.profiles ?? configRecord.profile))
+          .map((profile) => sanitizeToken(profile) ?? profile)
+          .filter((profile): profile is string => Boolean(profile));
+        configurations.push({
+          code,
+          name,
+          match,
+          shipVariantIds: configShipVariantIds,
+          profiles
+        });
+      } else {
+        const match = toString(rawValue) ?? rawCode;
+        configurations.push({
+          code,
+          name: match,
+          match,
+          shipVariantIds: [],
+          profiles: []
+        });
+      }
     }
   }
 
@@ -197,6 +236,8 @@ export class ShipGrouping {
             variantCode,
             names: normalized.names,
             editions: normalized.editions,
+            matchIds: normalized.matchIds,
+            shipVariantIds: normalized.shipVariantIds,
             configurations: [...normalized.configurations]
           };
 
@@ -250,6 +291,16 @@ export class ShipGrouping {
 
     for (const id of config.shipVariantIds) {
       this.registerShipVariantId(id, assignment);
+    }
+
+    for (const id of assignment.shipVariantIds) {
+      this.registerShipVariantId(id, assignment);
+    }
+
+    for (const variantConfig of assignment.configurations) {
+      for (const id of variantConfig.shipVariantIds) {
+        this.registerShipVariantId(id, assignment);
+      }
     }
   }
 
@@ -331,11 +382,32 @@ export class ShipGrouping {
     if (!normalizedCandidates.length) return undefined;
 
     for (const configuration of assignment.configurations) {
-      const normalizedTarget = configuration.match.trim().toLowerCase();
-      if (!normalizedTarget) continue;
+      const targets = new Set<string>();
+      const addTarget = (value: string | undefined) => {
+        if (!value) return;
+        const normalized = value.trim().toLowerCase();
+        if (normalized) targets.add(normalized);
+      };
+
+      addTarget(configuration.match);
+      addTarget(configuration.name);
+      addTarget(configuration.code);
+
+      for (const profile of configuration.profiles) {
+        addTarget(profile);
+      }
+
+      for (const variantId of configuration.shipVariantIds) {
+        addTarget(variantId);
+      }
+
+      if (!targets.size) continue;
+
       for (const candidate of normalizedCandidates) {
-        if (candidate.includes(normalizedTarget)) {
-          return configuration.code;
+        for (const target of targets) {
+          if (candidate.includes(target)) {
+            return configuration.code;
+          }
         }
       }
     }

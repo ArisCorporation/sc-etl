@@ -73,6 +73,11 @@ const COLLECTIONS = {
 const PAGE_LIMIT = 200;
 const HARDPOINT_KEY_SEPARATOR = '::';
 const DEFAULT_VARIANT_CODE = 'BASE';
+const ITEM_TYPE_ALLOWLIST = new Set<string>(['QUANTUMDRIVE', 'SHIELD', 'SHIELDCONTROLLER']);
+const HARDPOINT_CATEGORY_ALLOWLIST: string[] = ['Shield', 'ShieldController', 'QuantumDrive'];
+const HARDPOINT_CATEGORY_ALLOWLIST_SET = new Set<string>(
+  HARDPOINT_CATEGORY_ALLOWLIST.map((category) => category.toUpperCase())
+);
 
 export function mapByExternalId<T extends { external_id: string }> (items: T[]): Map<string, T> {
   const map = new Map<string, T>();
@@ -987,7 +992,22 @@ async function syncItems (
   promoteVersions: boolean
 ): Promise<void> {
   const started = performance.now();
-  log.info('Syncing items', { total: items.length });
+  const allowlistedTypes = Array.from(ITEM_TYPE_ALLOWLIST);
+  const itemsToSync = items.filter((item) => {
+    const normalizedType = normalizeString(item.type)?.toUpperCase();
+    return normalizedType ? ITEM_TYPE_ALLOWLIST.has(normalizedType) : false;
+  });
+  const skippedItemCount = items.length - itemsToSync.length;
+
+  log.info('Syncing items', {
+    total: itemsToSync.length,
+    skipped_non_allowlisted: skippedItemCount
+  });
+
+  const existingFilter: Record<string, unknown> | undefined =
+    allowlistedTypes.length === 1
+      ? { type: { _eq: allowlistedTypes[0] } }
+      : { _or: allowlistedTypes.map((type) => ({ type: { _eq: type } })) };
 
   const existingRows = await fetchAllRows<ExistingItemRow>(COLLECTIONS.items, [
     'id',
@@ -1002,7 +1022,7 @@ async function syncItems (
     'external_refs',
     'stats',
     'external_id'
-  ]);
+  ], existingFilter);
 
   const byId = new Map<string, ItemState>();
   const byComposite = new Map<string, ItemState>();
@@ -1012,7 +1032,7 @@ async function syncItems (
   let unchanged = 0;
 
   for (const row of existingRows) {
-    const type = normalizeString(row.type) ?? '';
+    const type = normalizeString(row.type)?.toUpperCase() ?? '';
     const snapshot: ItemSnapshot = {
       name: normalizeString(row.name) ?? '',
       type,
@@ -1032,7 +1052,9 @@ async function syncItems (
     attachItemState(state, byComposite, byRef);
   }
 
-  for (const item of items) {
+  for (const item of itemsToSync) {
+    const normalizedType = normalizeString(item.type)?.toUpperCase();
+    if (!normalizedType) continue;
     const manufacturerId = item.company_code ? await resolveCompanyId(item.company_code) : undefined;
     const stats = sanitizeItemStats(cloneJson(item.stats ?? {}));
     if (item.description) {
@@ -1040,7 +1062,7 @@ async function syncItems (
     }
     const snapshot: ItemSnapshot = {
       name: item.name,
-      type: item.type,
+      type: normalizedType,
       subtype: item.subtype ?? null,
       size: item.size ?? null,
       grade: item.grade ?? null,
@@ -1112,10 +1134,11 @@ async function syncItems (
 
   const durationMs = Math.round(performance.now() - started);
   log.info('Items sync complete', {
-    total: items.length,
+    total: itemsToSync.length,
     created: createdCount,
     updated,
     unchanged,
+    skipped_non_allowlisted: skippedItemCount,
     duration_ms: durationMs
   });
 }
@@ -1527,7 +1550,27 @@ async function syncHardpoints (
   if (!hardpoints.length) return;
 
   const started = performance.now();
-  log.info('Syncing hardpoints', { total: hardpoints.length });
+  const hardpointsToSync = hardpoints.filter((hp) => {
+    const normalizedCategory = normalizeString(hp.category)?.toUpperCase();
+    return normalizedCategory ? HARDPOINT_CATEGORY_ALLOWLIST_SET.has(normalizedCategory) : false;
+  });
+  const skippedNonAllowlisted = hardpoints.length - hardpointsToSync.length;
+
+  log.info('Syncing hardpoints', {
+    total: hardpointsToSync.length,
+    skipped_non_allowlisted: skippedNonAllowlisted
+  });
+
+  if (!hardpointsToSync.length) {
+    return;
+  }
+
+  const existingFilter: Record<string, unknown> | undefined =
+    HARDPOINT_CATEGORY_ALLOWLIST.length === 1
+      ? { category: { _eq: HARDPOINT_CATEGORY_ALLOWLIST[0] } }
+      : {
+          _or: HARDPOINT_CATEGORY_ALLOWLIST.map((category) => ({ category: { _eq: category } }))
+        };
 
   // Vorhandene Rows inkl. external_id laden
   const existingRows = await fetchAllRows<ExistingHardpointRow>(COLLECTIONS.hardpoints, [
@@ -1549,7 +1592,7 @@ async function syncHardpoints (
     'item_quantity',
     'is_leaf',
     'external_id'
-  ]);
+  ], existingFilter);
 
 
   // Map zur Parent-Auflösung: external_id -> Directus-ID (mit vorhandenen füttern)
@@ -1601,7 +1644,7 @@ async function syncHardpoints (
     const path = parts.slice(1).join(':');
     return path ? path.split('/').length : 1;
   };
-  hardpoints.sort((a, b) =>
+  hardpointsToSync.sort((a, b) =>
     depth(String((a as any).external_id ?? '')) - depth(String((b as any).external_id ?? ''))
   );
 
@@ -1616,7 +1659,7 @@ async function syncHardpoints (
   let linkedParents = 0;
   let linkedItems = 0;
 
-  for (const hardpoint of hardpoints) {
+  for (const hardpoint of hardpointsToSync) {
     // external_id / Pfad & Parent ermitteln
     const extId = normalizeString((hardpoint as any).external_id as string);
     if (!extId) {
@@ -1760,7 +1803,7 @@ async function syncHardpoints (
 
   const durationMs = Math.round(performance.now() - started);
   log.info('Hardpoints sync complete', {
-    total: hardpoints.length,
+    total: hardpointsToSync.length,
     created: createdCount,
     updated: updatedCount,
     unchanged,
@@ -1770,7 +1813,8 @@ async function syncHardpoints (
       invalid_id: skippedInvalidId,
       missing_variant: skippedMissingVariant,
       missing_category: skippedMissingCategory,
-      duplicate: skippedDuplicate
+      duplicate: skippedDuplicate,
+      non_allowlisted: skippedNonAllowlisted
     },
     duration_ms: durationMs
   });

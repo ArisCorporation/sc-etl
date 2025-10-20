@@ -1526,7 +1526,10 @@ export async function transform (
     if (variantConfigurationCode) {
       const configurationEntry = assignment.configurations.find((entry) => entry.code === variantConfigurationCode);
       if (configurationEntry) {
-        group.names.add(configurationEntry.match);
+        const label = configurationEntry.name ?? configurationEntry.match ?? configurationEntry.code;
+        if (label) {
+          group.names.add(label);
+        }
       }
     }
 
