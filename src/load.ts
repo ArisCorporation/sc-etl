@@ -1,15 +1,20 @@
+import { performance } from 'node:perf_hooks';
 import { join } from 'node:path';
 import { readJsonOrDefault } from './utils/fs.js';
 import {
+  createMany,
   createOne,
   createOneWithVersion,
+  deleteMany,
   readByQuery,
+  updateMany,
   updateOne,
   updateOneWithVersion
 } from './utils/directus.js';
 import { log } from './utils/log.js';
 import { CompanyResolver } from './utils/companyResolver.js';
 import { computeDiff } from './diffs.js';
+import { loadShipGrouping } from './config/ship-groups.js';
 import type {
   Channel,
   NormalizedBundleV2,
@@ -17,6 +22,7 @@ import type {
   NormalizedDataBundle,
   NormalizedExternalReference,
   NormalizedHardpointV2,
+  NormalizedInstalledItem,
   NormalizedItemV2,
   NormalizedShipVariantV2,
   NormalizedShipV2
@@ -58,7 +64,10 @@ const COLLECTIONS = {
   ships: process.env.SC_SHIP_COLLECTION ?? 'ships',
   shipVariants: process.env.SC_SHIP_VARIANT_COLLECTION ?? 'ship_variants',
   items: process.env.SC_ITEM_COLLECTION ?? 'items',
-  hardpoints: process.env.SC_HARDPOINT_COLLECTION ?? 'hardpoints'
+  hardpoints: process.env.SC_HARDPOINT_COLLECTION ?? 'hardpoints',
+  shipConfigurations: process.env.SC_SHIP_CONFIGURATION_COLLECTION ?? 'ship_configurations',
+  shipConfigurationHardpoints:
+    process.env.SC_SHIP_CONFIGURATION_HP_COLLECTION ?? 'ship_configuration_hardpoints'
 } as const;
 
 const PAGE_LIMIT = 200;
@@ -235,12 +244,53 @@ function sanitizeItemStats (value: Record<string, unknown>): Record<string, unkn
   return stats;
 }
 
+function toOptionalString (value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  }
+  return undefined;
+}
+
+function normalizeExternalId (value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value.trim().toUpperCase();
+}
+
+function humanizeCode (code: string): string {
+  return code
+    .toLowerCase()
+    .split('_')
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : part))
+    .join(' ');
+}
+
+function chunkArray<T>(input: readonly T[], size: number): T[][] {
+  if (size <= 0) throw new Error('chunk size must be > 0');
+  const result: T[][] = [];
+  for (let i = 0; i < input.length; i += size) {
+    result.push(input.slice(i, i + size));
+  }
+  return result;
+}
+
 async function buildItemIdMap (): Promise<Map<string, string>> {
   type ItemIdRow = { id: string; external_id?: string | null };
   const rows = await fetchAllRows<ItemIdRow>(COLLECTIONS.items, ['id', 'external_id']);
   const map = new Map<string, string>();
   for (const row of rows) {
     const ext = normalizeString(row.external_id);
+    if (ext) map.set(ext, row.id);
+  }
+  return map;
+}
+
+async function buildHardpointIdMap (): Promise<Map<string, string>> {
+  type HardpointIdRow = { id: string; external_id?: string | null };
+  const rows = await fetchAllRows<HardpointIdRow>(COLLECTIONS.hardpoints, ['id', 'external_id']);
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    const ext = normalizeExternalId(row.external_id as string | undefined);
     if (ext) map.set(ext, row.id);
   }
   return map;
@@ -322,6 +372,201 @@ function splitVariantStats (
     statsByVariant,
     hardpoints: explicit.length ? explicit : extracted
   };
+}
+
+interface CompanySnapshot {
+  code: string;
+  name: string | null;
+  category: string | null;
+  external_refs: NormalizedExternalReference[];
+  status: string;
+}
+
+interface CompanyState {
+  id: string;
+  snapshot: CompanySnapshot;
+}
+
+interface ExistingCompanyRow {
+  id: string;
+  code?: string | null;
+  name?: string | null;
+  category?: unknown;
+  external_refs?: unknown;
+  status?: string | null;
+}
+
+function normalizeCompanyCode (value: unknown): string | undefined {
+  const normalized = normalizeString(value);
+  return normalized ? normalized.toUpperCase() : undefined;
+}
+
+function makeCompanySnapshotFromRow (row: ExistingCompanyRow): CompanySnapshot | undefined {
+  const code = normalizeCompanyCode(row.code);
+  if (!code) return undefined;
+  return {
+    code,
+    name: normalizeString(row.name) ?? null,
+    category: extractId(row.category) ?? null,
+    external_refs: normalizeExternalRefsInput(row.external_refs),
+    status: normalizeString(row.status) ?? 'draft'
+  };
+}
+
+function makeCompanySnapshotFromNormalized (
+  company: NormalizedCompanyV2,
+  defaultCategory: string | null
+): CompanySnapshot | undefined {
+  const code = normalizeCompanyCode(company.code);
+  if (!code) {
+    return undefined;
+  }
+  return {
+    code,
+    name: normalizeString(company.name) ?? null,
+    category: defaultCategory,
+    external_refs: sortRefs(cloneRefs(company.external_refs ?? [])),
+    status: 'published'
+  };
+}
+
+function pickDefaultCompanyCategory (existing: Iterable<CompanySnapshot>): string | null {
+  const counts = new Map<string, number>();
+  for (const snapshot of existing) {
+    if (!snapshot.category) continue;
+    counts.set(snapshot.category, (counts.get(snapshot.category) ?? 0) + 1);
+  }
+  if (!counts.size) return null;
+  let selected: string | null = null;
+  let highest = -1;
+  for (const [id, count] of counts.entries()) {
+    if (count > highest) {
+      selected = id;
+      highest = count;
+    }
+  }
+  return selected;
+}
+
+function loggableDirectusError (error: unknown): Record<string, unknown> {
+  if (!(error instanceof Error)) {
+    return { error };
+  }
+  const output: Record<string, unknown> = {
+    name: error.name,
+    message: error.message
+  };
+  const directus = (error as any)?.directus;
+  if (directus && typeof directus === 'object') {
+    output.directus = directus;
+  }
+  const errors = (error as any)?.errors;
+  if (Array.isArray(errors)) {
+    output.errors = errors;
+  }
+  const response = (error as any)?.response;
+  if (response && typeof response === 'object') {
+    output.response = {
+      status: (response as any).status,
+      statusText: (response as any).statusText,
+      url: (response as any).url
+    };
+  }
+  return output;
+}
+
+async function syncCompanies (companies: NormalizedCompanyV2[]): Promise<Map<string, string>> {
+  const existingRows = await fetchAllRows<ExistingCompanyRow>(COLLECTIONS.companies, [
+    'id',
+    'code',
+    'name',
+    'category',
+    'category.id',
+    'external_refs',
+    'status'
+  ]);
+
+  const byCode = new Map<string, CompanyState>();
+  for (const row of existingRows) {
+    const snapshot = makeCompanySnapshotFromRow(row);
+    if (!snapshot) continue;
+    byCode.set(snapshot.code, { id: row.id, snapshot });
+  }
+
+  const defaultCategory = pickDefaultCompanyCategory(
+    Array.from(byCode.values(), (state) => state.snapshot)
+  );
+
+  if (!defaultCategory) {
+    log.warn('No default company category detected; skipping creation of missing companies.');
+  }
+
+  const idMap = new Map<string, string>();
+
+  for (const entry of companies) {
+    const snapshot = makeCompanySnapshotFromNormalized(entry, defaultCategory);
+    if (!snapshot) {
+      log.warn('Skipping normalized company entry with invalid code');
+      continue;
+    }
+
+    const existing = byCode.get(snapshot.code);
+    if (existing) {
+      const diff = computeDiff(
+        snapshotToRecord(existing.snapshot),
+        snapshotToRecord(snapshot),
+        ['name', 'external_refs', 'status']
+      );
+      if (diff) {
+        try {
+          await updateOne(COLLECTIONS.companies, existing.id, {
+            name: snapshot.name,
+            external_refs: snapshot.external_refs,
+            status: snapshot.status
+          });
+        } catch (error) {
+          log.error('Failed to update Directus company', {
+            code: snapshot.code,
+            ...loggableDirectusError(error)
+          });
+          throw error;
+        }
+        byCode.set(snapshot.code, { id: existing.id, snapshot });
+      }
+      idMap.set(snapshot.code, existing.id);
+    } else {
+      if (!snapshot.category) {
+        log.warn('Missing default company category; unable to create company', {
+          code: snapshot.code
+        });
+        continue;
+      }
+      let created;
+      try {
+        created = await createOne<{ id: string }>(COLLECTIONS.companies, {
+          code: snapshot.code,
+          name: snapshot.name,
+          category: snapshot.category,
+          external_refs: snapshot.external_refs,
+          status: snapshot.status
+        });
+      } catch (error) {
+        log.error('Failed to create Directus company', {
+          code: snapshot.code,
+          ...loggableDirectusError(error)
+        });
+        throw error;
+      }
+      idMap.set(snapshot.code, created.id);
+      byCode.set(snapshot.code, { id: created.id, snapshot });
+      log.info('Created Directus company entry from normalized data', {
+        code: snapshot.code,
+        id: created.id
+      });
+    }
+  }
+
+  return idMap;
 }
 
 interface ShipSnapshot {
@@ -741,6 +986,9 @@ async function syncItems (
   versionName: string,
   promoteVersions: boolean
 ): Promise<void> {
+  const started = performance.now();
+  log.info('Syncing items', { total: items.length });
+
   const existingRows = await fetchAllRows<ExistingItemRow>(COLLECTIONS.items, [
     'id',
     'name',
@@ -759,6 +1007,9 @@ async function syncItems (
   const byId = new Map<string, ItemState>();
   const byComposite = new Map<string, ItemState>();
   const byRef = new Map<string, ItemState>();
+  let createdCount = 0;
+  let updated = 0;
+  let unchanged = 0;
 
   for (const row of existingRows) {
     const type = normalizeString(row.type) ?? '';
@@ -841,19 +1092,32 @@ async function syncItems (
         const nextState = makeItemState(state.id, snapshot);
         byId.set(state.id, nextState);
         attachItemState(nextState, byComposite, byRef);
+        updated += 1;
+      } else {
+        unchanged += 1;
       }
     } else {
-      const created = await createOneWithVersion<{ id: string }>(
+      const createdItem = await createOneWithVersion<{ id: string }>(
         COLLECTIONS.items,
         payload,
         versionName,
         promoteVersions
       );
-      const newState = makeItemState(created.id, snapshot);
+      const newState = makeItemState(createdItem.id, snapshot);
       byId.set(newState.id, newState);
       attachItemState(newState, byComposite, byRef);
+      createdCount += 1;
     }
   }
+
+  const durationMs = Math.round(performance.now() - started);
+  log.info('Items sync complete', {
+    total: items.length,
+    created: createdCount,
+    updated,
+    unchanged,
+    duration_ms: durationMs
+  });
 }
 
 interface HardpointSnapshot {
@@ -898,8 +1162,358 @@ interface ExistingHardpointRow {
 }
 
 
+interface ExistingShipConfigurationRow {
+  id: string;
+  ship_variant?: string | { id?: string } | null;
+  code?: string | null;
+  name?: string | null;
+  profile?: string | null;
+}
+
+interface ExistingShipConfigurationHardpointRow {
+  id: string;
+  configuration?: string | { id?: string } | null;
+  hardpoint?: string | { id?: string } | null;
+  item?: string | { id?: string } | null;
+  quantity?: number | string | null;
+}
+
+interface ResolvedShipConfiguration {
+  configurationId: string;
+  configurationCode: string;
+  variantExternalId: string;
+  shipVariantIds: string[];
+  profiles: string[];
+  isBase: boolean;
+}
+
+
 function hardpointKey (shipVariantId: string, code: string): string {
   return `${shipVariantId}${HARDPOINT_KEY_SEPARATOR}${code.toLowerCase()}`;
+}
+
+
+async function syncShipConfigurations (
+  grouping: ReturnType<typeof loadShipGrouping>,
+  variants: NormalizedShipVariantV2[],
+  variantIdMap: Map<string, string>
+): Promise<ResolvedShipConfiguration[]> {
+  const existingRows = await fetchAllRows<ExistingShipConfigurationRow>(COLLECTIONS.shipConfigurations, [
+    'id',
+    'ship_variant',
+    'ship_variant.id',
+    'code',
+    'name'
+  ]);
+
+  const existingByVariant = new Map<string, Map<string, ExistingShipConfigurationRow>>();
+  for (const row of existingRows) {
+    const variantId = extractId(row.ship_variant);
+    if (!variantId) continue;
+    const code = toOptionalString(row.code)?.toUpperCase();
+    if (!code) continue;
+    let map = existingByVariant.get(variantId);
+    if (!map) {
+      map = new Map();
+      existingByVariant.set(variantId, map);
+    }
+    map.set(code, row);
+  }
+
+  const resolved: ResolvedShipConfiguration[] = [];
+  const deleteIds: string[] = [];
+
+  for (const variant of variants) {
+    const variantExternalId = normalizeExternalId(variant.external_id);
+    if (!variantExternalId) continue;
+    const directusVariantId = variantIdMap.get(variantExternalId);
+    if (!directusVariantId) {
+      log.warn('Missing Directus ship_variant for configuration sync', {
+        variant: variant.external_id
+      });
+      continue;
+    }
+
+    const assignment =
+      grouping.lookupVariant(variant.ship_external, variant.variant_code) ??
+      grouping.lookupShipVariantId(variantExternalId) ??
+      grouping.lookupShipId(variantExternalId);
+
+    const configs = new Map<string, { name: string; shipVariantIds: string[]; profiles: string[]; isBase: boolean }>();
+
+    const baseName = variant.name || humanizeCode('BASE');
+    configs.set('BASE', {
+      name: baseName,
+      shipVariantIds: [variantExternalId],
+      profiles: [],
+      isBase: true
+    });
+
+    if (assignment) {
+      for (const config of assignment.configurations) {
+        const code = config.code?.trim().toUpperCase();
+        if (!code || code === 'BASE') continue;
+        const shipVariantIds = (config.shipVariantIds.length ? config.shipVariantIds : [variantExternalId])
+          .map((id) => normalizeExternalId(id))
+          .filter((id): id is string => Boolean(id));
+        if (!shipVariantIds.length) shipVariantIds.push(variantExternalId);
+        const profiles = (config.profiles ?? [])
+          .map((profile) => normalizeExternalId(profile))
+          .filter((profile): profile is string => Boolean(profile));
+        const name = config.name ?? humanizeCode(code);
+        configs.set(code, {
+          name,
+          shipVariantIds,
+          profiles,
+          isBase: false
+        });
+      }
+    }
+
+    const variantExisting = new Map(existingByVariant.get(directusVariantId) ?? []);
+
+    for (const [code, config] of configs.entries()) {
+      const existing = variantExisting.get(code);
+      if (existing) {
+        const updates: Record<string, unknown> = {};
+        const existingName = toOptionalString(existing.name) ?? '';
+        if (existingName !== config.name) {
+          updates.name = config.name;
+        }
+        if (Object.keys(updates).length) {
+          await updateOne(COLLECTIONS.shipConfigurations, existing.id, updates);
+        }
+        variantExisting.delete(code);
+        resolved.push({
+          configurationId: existing.id,
+          configurationCode: code,
+          variantExternalId,
+          shipVariantIds: config.shipVariantIds,
+          profiles: config.profiles,
+          isBase: config.isBase
+        });
+      } else {
+        const created = await createOne<{ id: string }>(COLLECTIONS.shipConfigurations, {
+          ship_variant: directusVariantId,
+          code,
+          name: config.name
+        });
+        resolved.push({
+          configurationId: created.id,
+          configurationCode: code,
+          variantExternalId,
+          shipVariantIds: config.shipVariantIds,
+          profiles: config.profiles,
+          isBase: config.isBase
+        });
+      }
+    }
+
+    for (const row of variantExisting.values()) {
+      deleteIds.push(row.id);
+    }
+  }
+
+  if (deleteIds.length) {
+    await deleteMany(COLLECTIONS.shipConfigurations, deleteIds);
+  }
+
+  return resolved;
+}
+
+async function syncShipConfigurationHardpoints (
+  configurations: ResolvedShipConfiguration[],
+  installedItems: NormalizedInstalledItem[],
+  hardpointIdMap: Map<string, string>,
+  itemIdMap: Map<string, string>
+): Promise<void> {
+  if (!configurations.length) {
+    log.info('Skipping configuration hardpoints sync', {
+      reason: 'no configurations',
+      installed_items: installedItems.length
+    });
+    return;
+  }
+
+  const started = performance.now();
+  log.info('Syncing configuration hardpoints', {
+    configurations: configurations.length,
+    installed_items: installedItems.length
+  });
+
+  const existingRows = await fetchAllRows<ExistingShipConfigurationHardpointRow>(
+    COLLECTIONS.shipConfigurationHardpoints,
+    ['id', 'configuration', 'configuration.id', 'hardpoint', 'hardpoint.id', 'item', 'item.id', 'quantity']
+  );
+
+  const existingMap = new Map<string, ExistingShipConfigurationHardpointRow>();
+  for (const row of existingRows) {
+    const configurationId = extractId(row.configuration);
+    const hardpointId = extractId(row.hardpoint);
+    if (!configurationId || !hardpointId) continue;
+    const itemId = extractId(row.item) ?? null;
+    const key = `${configurationId}|${hardpointId}|${itemId ?? 'null'}`;
+    existingMap.set(key, row);
+  }
+
+  const itemsByVariant = new Map<string, NormalizedInstalledItem[]>();
+  for (const item of installedItems) {
+    const shipId = normalizeExternalId(item.ship_variant_external_id);
+    if (!shipId) continue;
+    if (!itemsByVariant.has(shipId)) {
+      itemsByVariant.set(shipId, []);
+    }
+    itemsByVariant.get(shipId)!.push(item);
+  }
+
+  const profileMap = new Map<string, Set<string>>();
+  for (const config of configurations) {
+    if (config.isBase) continue;
+    const set = profileMap.get(config.variantExternalId) ?? new Set<string>();
+    for (const profile of config.profiles) {
+      set.add(profile);
+    }
+    profileMap.set(config.variantExternalId, set);
+  }
+
+  const desired = new Map<string, { configuration: string; hardpoint: string; item?: string; quantity: number }>();
+  let missingHardpoint = 0;
+  let missingItem = 0;
+  let profileFiltered = 0;
+  let matchedRecords = 0;
+
+  for (const config of configurations) {
+    let normalizedVariantIds = config.shipVariantIds
+      .map((id) => normalizeExternalId(id))
+      .filter((id): id is string => Boolean(id));
+    if (!normalizedVariantIds.length) {
+      const fallbackId = normalizeExternalId(config.variantExternalId);
+      if (fallbackId) {
+        normalizedVariantIds = [fallbackId];
+      } else {
+        continue;
+      }
+    }
+
+    const competingProfiles = profileMap.get(config.variantExternalId) ?? new Set<string>();
+
+    for (const variantId of normalizedVariantIds) {
+      const records = itemsByVariant.get(variantId);
+      if (!records || !records.length) continue;
+
+      for (const record of records) {
+        const hardpointExternal = normalizeExternalId(record.hardpoint_external_id);
+        if (!hardpointExternal) continue;
+        const hardpointId = hardpointIdMap.get(hardpointExternal);
+        if (!hardpointId) {
+          log.warn('Missing hardpoint mapping for configuration loadout', {
+            configuration: config.configurationCode,
+            hardpoint: record.hardpoint_external_id
+          });
+          missingHardpoint += 1;
+          continue;
+        }
+
+        const profile = normalizeExternalId(record.profile);
+        if (config.profiles.length) {
+          if (!profile || !config.profiles.includes(profile)) {
+            profileFiltered += 1;
+            continue;
+          }
+        } else if (profile && competingProfiles.has(profile)) {
+          profileFiltered += 1;
+          continue;
+        }
+
+        const itemId = record.item_external_id ? itemIdMap.get(record.item_external_id) : undefined;
+        if (!itemId) {
+          missingItem += 1;
+          continue;
+        }
+
+        const quantity =
+          typeof record.quantity === 'number'
+            ? record.quantity
+            : Number(record.quantity ?? 1) || 1;
+
+        const key = `${config.configurationId}|${hardpointId}|${itemId}`;
+        const existing = desired.get(key);
+        if (existing) {
+          existing.quantity += quantity;
+        } else {
+          desired.set(key, {
+            configuration: config.configurationId,
+            hardpoint: hardpointId,
+            item: itemId,
+            quantity
+          });
+        }
+        matchedRecords += 1;
+      }
+    }
+  }
+
+  const toCreate: Array<Record<string, unknown>> = [];
+  const toUpdate: Array<Record<string, unknown>> = [];
+  const toDelete: string[] = [];
+
+  for (const [key, payload] of desired.entries()) {
+    const existing = existingMap.get(key);
+    if (existing) {
+      existingMap.delete(key);
+      const existingQuantity =
+        typeof existing.quantity === 'number'
+          ? existing.quantity
+          : Number(existing.quantity ?? 1) || 1;
+      if (existingQuantity !== payload.quantity) {
+        toUpdate.push({ id: existing.id, quantity: payload.quantity });
+      }
+    } else {
+      toCreate.push({
+        configuration: payload.configuration,
+        hardpoint: payload.hardpoint,
+        item: payload.item ?? null,
+        quantity: payload.quantity
+      });
+    }
+  }
+
+  for (const row of existingMap.values()) {
+    toDelete.push(row.id);
+  }
+
+  for (const batch of chunkArray(toDelete, 100)) {
+    if (batch.length) {
+      await deleteMany(COLLECTIONS.shipConfigurationHardpoints, batch);
+    }
+  }
+
+  for (const batch of chunkArray(toCreate, 100)) {
+    if (batch.length) {
+      await createMany(COLLECTIONS.shipConfigurationHardpoints, batch);
+    }
+  }
+
+  for (const batch of chunkArray(toUpdate, 100)) {
+    if (batch.length) {
+      await updateMany(COLLECTIONS.shipConfigurationHardpoints, batch);
+    }
+  }
+
+  const durationMs = Math.round(performance.now() - started);
+  log.info('Configuration hardpoints sync complete', {
+    linked_records: matchedRecords,
+    desired_entries: desired.size,
+    created: toCreate.length,
+    updated: toUpdate.length,
+    deleted: toDelete.length,
+    skipped: {
+      missing_hardpoint: missingHardpoint,
+      missing_item: missingItem,
+      profile_filtered: profileFiltered
+    },
+    duration_ms: durationMs
+  });
 }
 
 async function syncHardpoints (
@@ -911,6 +1525,9 @@ async function syncHardpoints (
   promoteVersions: boolean
 ): Promise<void> {
   if (!hardpoints.length) return;
+
+  const started = performance.now();
+  log.info('Syncing hardpoints', { total: hardpoints.length });
 
   // Vorhandene Rows inkl. external_id laden
   const existingRows = await fetchAllRows<ExistingHardpointRow>(COLLECTIONS.hardpoints, [
@@ -989,11 +1606,23 @@ async function syncHardpoints (
   );
 
   const seen = new Set<string>();
+  let createdCount = 0;
+  let updatedCount = 0;
+  let unchanged = 0;
+  let skippedInvalidId = 0;
+  let skippedMissingVariant = 0;
+  let skippedMissingCategory = 0;
+  let skippedDuplicate = 0;
+  let linkedParents = 0;
+  let linkedItems = 0;
 
   for (const hardpoint of hardpoints) {
     // external_id / Pfad & Parent ermitteln
     const extId = normalizeString((hardpoint as any).external_id as string);
-    if (!extId) continue;
+    if (!extId) {
+      skippedInvalidId += 1;
+      continue;
+    }
 
     const parts = extId.split(':');  // ["RSI_ZEUS_CL", "hp_turret/.."]
     const pathPart = parts.slice(1).join(':');
@@ -1016,19 +1645,28 @@ async function syncHardpoints (
         ship_variant: hardpoint.ship_variant_external,
         code: hardpoint.code
       });
+      skippedMissingVariant += 1;
       continue;
     }
 
     const category = normalizeString(hardpoint.category);
-    if (!category) continue;
+    if (!category) {
+      skippedMissingCategory += 1;
+      continue;
+    }
 
     // pro external_id nur einmal
     const key = extId;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) {
+      skippedDuplicate += 1;
+      continue;
+    }
     seen.add(key);
 
     const parentId = parentExt ? hardpointIdByExternal.get(parentExt) ?? null : null;
     const itemId = itemExternal ? itemIdMap.get(itemExternal) ?? null : null;
+    if (parentId) linkedParents += 1;
+    if (itemId) linkedItems += 1;
     const meta: Record<string, unknown> = {};
     if (hardpoint.seats !== undefined && hardpoint.seats !== null) {
       meta.seats = hardpoint.seats;
@@ -1101,9 +1739,11 @@ async function syncHardpoints (
         );
         // Map immer aktualisieren, damit nachfolgende Kinder den Parent finden
         hardpointIdByExternal.set(extId, state.id);
+        updatedCount += 1;
       } else {
         // auch ohne Update parent map füttern
         hardpointIdByExternal.set(extId, state.id);
+        unchanged += 1;
       }
     } else {
       const created = await createOneWithVersion<{ id: string }>(
@@ -1114,8 +1754,26 @@ async function syncHardpoints (
       );
       // Map für Kinder füllen
       hardpointIdByExternal.set(extId, created.id);
+      createdCount += 1;
     }
   }
+
+  const durationMs = Math.round(performance.now() - started);
+  log.info('Hardpoints sync complete', {
+    total: hardpoints.length,
+    created: createdCount,
+    updated: updatedCount,
+    unchanged,
+    linked_items: linkedItems,
+    linked_parents: linkedParents,
+    skipped: {
+      invalid_id: skippedInvalidId,
+      missing_variant: skippedMissingVariant,
+      missing_category: skippedMissingCategory,
+      duplicate: skippedDuplicate
+    },
+    duration_ms: durationMs
+  });
 }
 
 
@@ -1207,6 +1865,7 @@ export async function loadAll (
   log.info('Loading v2 data into Directus', { buildId: build.id, channel, version });
 
   const normalizedV2 = await loadNormalizedBundleV2(normalizedDir, channel, version);
+  const shipGrouping = loadShipGrouping();
   const contentVersionName = `V${version}-${channel}`;
   const promoteVersions = channel === 'LIVE';
 
@@ -1232,6 +1891,8 @@ export async function loadAll (
 
   const { statsByVariant, hardpoints } = splitVariantStats(normalizedV2);
 
+  const companyIdSeed = await syncCompanies(normalizedV2.companies);
+
   const companyResolver = new CompanyResolver(COLLECTIONS.companies);
   await companyResolver.warmup();
 
@@ -1249,6 +1910,12 @@ export async function loadAll (
       log.warn('Encountered entity without company code; skipping manufacturer assignment');
       companyIdCache.set(cacheKey, null);
       return undefined;
+    }
+
+    const seeded = companyIdSeed.get(normalized);
+    if (seeded) {
+      companyIdCache.set(cacheKey, seeded);
+      return seeded;
     }
 
     const id = await companyResolver.lookupId(normalized);
@@ -1278,6 +1945,12 @@ export async function loadAll (
     promoteVersions
   );
 
+  const resolvedConfigurations = await syncShipConfigurations(
+    shipGrouping,
+    normalizedV2.ship_variants,
+    variantIdMap
+  );
+
   await syncItems(normalizedV2.items, resolveCompanyId, contentVersionName, promoteVersions);
 
   const itemIdMap = await buildItemIdMap();
@@ -1288,6 +1961,14 @@ export async function loadAll (
     itemIdMap,              // Map item external -> Directus ID
     contentVersionName,
     promoteVersions
+  );
+
+  const hardpointIdMap = await buildHardpointIdMap();
+  await syncShipConfigurationHardpoints(
+    resolvedConfigurations,
+    installedItems,
+    hardpointIdMap,
+    itemIdMap
   );
 
   const completed = await updateOne<BuildRecord>('builds', build.id, {
