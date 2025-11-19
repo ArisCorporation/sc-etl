@@ -12,18 +12,22 @@ import (
 
 // Config collects runtime configuration for the ETL pipeline.
 type Config struct {
-	Channel       string
-	Version       string
-	DataRoot      string
-	P4KPath       string
-	ForceUnp4k    bool
-	Unp4k         ExternalToolConfig
-	Unforge       ExternalToolConfig
-	ScDataDump    ExternalToolConfig
-	Unp4kEnable   bool
-	UnforgeEnable bool
-	ScdEnable     bool
-	WineBin       string
+	Channel                string
+	Version                string
+	DataRoot               string
+	P4KPath                string
+	LoadEnabled            bool
+	DirectusURL            string
+	DirectusToken          string
+	DefaultCompanyCategory string
+	ForceUnp4k             bool
+	Unp4k                  ExternalToolConfig
+	Unforge                ExternalToolConfig
+	ScDataDump             ExternalToolConfig
+	Unp4kEnable            bool
+	UnforgeEnable          bool
+	ScdEnable              bool
+	WineBin                string
 }
 
 // ExternalToolConfig describes a command line integration for native tooling.
@@ -60,6 +64,18 @@ func Parse(args []string) (*Config, error) {
 	fs.StringVar(&cfg.DataRoot, "data-root", defaultRoot, "Root directory for ETL assets")
 
 	fs.StringVar(&cfg.P4KPath, "p4k", envStringList([]string{"P4K_PATH", "DATA_P4K"}, ""), "Path to Data.p4k archive")
+
+	cfg.LoadEnabled = envBool("LOAD_ENABLED", true)
+	fs.BoolVar(&cfg.LoadEnabled, "load-enabled", cfg.LoadEnabled, "Enable Directus load step")
+
+	cfg.DirectusURL = envString("DIRECTUS_URL", "")
+	fs.StringVar(&cfg.DirectusURL, "directus-url", cfg.DirectusURL, "Directus base URL")
+
+	cfg.DirectusToken = envString("DIRECTUS_TOKEN", "")
+	fs.StringVar(&cfg.DirectusToken, "directus-token", cfg.DirectusToken, "Directus static token")
+
+	cfg.DefaultCompanyCategory = envString("DEFAULT_COMPANY_CATEGORY", "")
+	fs.StringVar(&cfg.DefaultCompanyCategory, "default-company-category", cfg.DefaultCompanyCategory, "Fallback Directus company category id when none can be detected")
 
 	cfg.ForceUnp4k = envBool("FORCE_UNP4K", false)
 	fs.BoolVar(&cfg.ForceUnp4k, "force-unp4k", cfg.ForceUnp4k, "Force re-extraction with unp4k")
@@ -117,6 +133,10 @@ func Parse(args []string) (*Config, error) {
 	cfg.Unp4k.Args = append(cfg.Unp4k.Args, unp4kArgs...)
 	cfg.Unforge.Args = append(cfg.Unforge.Args, unforgeArgs...)
 	cfg.ScDataDump.Args = append(cfg.ScDataDump.Args, scdArgs...)
+
+	cfg.DirectusURL = strings.TrimSpace(cfg.DirectusURL)
+	cfg.DirectusToken = strings.TrimSpace(cfg.DirectusToken)
+	cfg.DefaultCompanyCategory = strings.TrimSpace(cfg.DefaultCompanyCategory)
 
 	if cfg.ScdEnable && cfg.ScDataDump.Bin == "" {
 		return nil, fmt.Errorf("scDataDumper enabled but no --scd-bin provided")

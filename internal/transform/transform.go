@@ -19,6 +19,7 @@ type Result struct {
 	V2            model.NormalizedBundleV2
 	RawDir        string
 	NormalizedDir string
+	Config        Config
 }
 
 // Run normalizes the raw Star Citizen data into the bundle consumed by loaders.
@@ -27,6 +28,8 @@ func Run(ctx context.Context, dataRoot string, channel model.Channel, version st
 	channelKey := string(channel)
 	rawDir := filepath.Join(dataRoot, "raw", channelKey, version)
 	normalizedDir := filepath.Join(dataRoot, "normalized", channelKey, version)
+
+	config := LoadConfig(nil)
 
 	manuRows, err := readJSONArray(filepath.Join(rawDir, "manufacturers.json"))
 	if err != nil {
@@ -80,16 +83,47 @@ func Run(ctx context.Context, dataRoot string, channel model.Channel, version st
 	}
 
 	hardpoints := normalizeHardpoints(hardpointRows, variantByExternal)
-	items := normalizeItems(itemRows)
+	items := normalizeItems(itemRows, config.AllowedItemTypes)
 	itemByExternal := map[string]model.NormalizedItem{}
 	for _, item := range items {
 		itemByExternal[item.ExternalID] = item
 	}
 
 	itemStats := normalizeItemStats(itemStatsRows, itemByExternal)
+	if len(itemStats) == 0 {
+		itemStats = buildItemStatsFallback(itemRows, itemByExternal)
+	}
 	shipStats := normalizeShipStats(shipStatsRows, variantByExternal)
 	installedItems := normalizeInstalledItems(installedRows, variantByExternal, itemByExternal)
 	locales := []model.NormalizedLocaleEntry{}
+
+	grouping := LoadShipGrouping()
+
+	if len(shipStats) == 0 {
+		fallbackStats, err := buildShipStatsFallback(rawDir, grouping, shipRows)
+		if err != nil {
+			utils.Logger().Warn("Failed to build ship stats fallback", "error", err)
+		} else if len(fallbackStats) > 0 {
+			utils.Logger().Info("Using ship stats fallback", "count", len(fallbackStats))
+			shipStats = fallbackStats
+		}
+	}
+
+	if len(hardpoints) == 0 || len(installedItems) == 0 {
+		fallbackHardpoints, fallbackInstalled, err := buildLoadoutFallback(rawDir, grouping, shipRows, itemByExternal)
+		if err != nil {
+			utils.Logger().Warn("Failed to build loadout fallback data", "error", err)
+		} else {
+			if len(hardpoints) == 0 && len(fallbackHardpoints) > 0 {
+				utils.Logger().Info("Using loadout fallback for hardpoints", "count", len(fallbackHardpoints))
+				hardpoints = fallbackHardpoints
+			}
+			if len(installedItems) == 0 && len(fallbackInstalled) > 0 {
+				utils.Logger().Info("Using loadout fallback for installed items", "count", len(fallbackInstalled))
+				installedItems = fallbackInstalled
+			}
+		}
+	}
 
 	legacy := model.NormalizedDataBundle{
 		Manufacturers:  manufacturers,
@@ -103,7 +137,7 @@ func Run(ctx context.Context, dataRoot string, channel model.Channel, version st
 		Locales:        locales,
 	}
 
-	v2 := buildV2Bundle(channel, version, manufacturers, ships, variants, items, hardpoints, shipStats)
+	v2 := buildV2Bundle(channel, version, manufacturers, ships, variants, items, itemStats, hardpoints, shipStats, grouping, shipRows, variantRows, config.HardpointsAsCollection)
 
 	if err := utils.EnsureDir(normalizedDir); err != nil {
 		return nil, fmt.Errorf("ensure normalized dir: %w", err)
@@ -139,6 +173,7 @@ func Run(ctx context.Context, dataRoot string, channel model.Channel, version st
 		V2:            v2,
 		RawDir:        rawDir,
 		NormalizedDir: normalizedDir,
+		Config:        config,
 	}, nil
 }
 
@@ -336,7 +371,7 @@ func normalizeHardpoints(rows []map[string]any, variants map[string]model.Normal
 	return result
 }
 
-func normalizeItems(rows []map[string]any) []model.NormalizedItem {
+func normalizeItems(rows []map[string]any, allowed map[string]struct{}) []model.NormalizedItem {
 	result := []model.NormalizedItem{}
 	seen := map[string]struct{}{}
 	for _, row := range rows {
@@ -348,38 +383,41 @@ func normalizeItems(rows []map[string]any) []model.NormalizedItem {
 		if _, exists := seen[external]; exists {
 			continue
 		}
+		if !shouldIncludeItem(row, allowed) {
+			continue
+		}
 		seen[external] = struct{}{}
-		typeName := firstNonEmpty(getString(row, "type"), getString(row, "Type"))
+		typeName := firstNonEmpty(strings.ToUpper(getString(row, "type")), strings.ToUpper(getString(row, "Type")), resolveItemTypeToken(row))
 		if typeName == "" {
 			continue
 		}
 		name := firstNonEmpty(getString(row, "name"), getString(row, "Name"))
 		if name == "" {
-			continue
+			name = external
 		}
-		manufacturerCode := uppercase(firstNonEmpty(getString(row, "manufacturer"), getString(row, "manufacturer_code")))
+		manufacturerCode := uppercase(firstNonEmpty(getString(row, "manufacturer"), getString(row, "manufacturer_code"), nestedManufacturerCode(row)))
 		item := model.NormalizedItem{
 			ExternalID: external,
-			Type:       strings.ToUpper(typeName),
+			Type:       typeName,
 			Name:       name,
 		}
 		if manufacturerCode != "" {
 			item.ManufacturerCode = &manufacturerCode
 		}
-		if subtype := getString(row, "subtype"); subtype != "" {
+		if subtype := itemSubtypeFromRow(row); subtype != "" {
 			item.Subtype = &subtype
 		}
-		if grade := getString(row, "grade"); grade != "" {
+		if grade := getString(row, "grade", "Grade"); grade != "" {
 			item.Grade = &grade
 		}
-		if classValue := getString(row, "class"); classValue != "" {
+		if classValue := getString(row, "class", "Class"); classValue != "" {
 			item.Class = &classValue
 		}
-		if sizeValue := getNumber(row, "size"); !math.IsNaN(sizeValue) {
+		if sizeValue := getNumber(row, "size", "Size"); !math.IsNaN(sizeValue) {
 			sizeInt := int(sizeValue)
 			item.Size = &sizeInt
 		}
-		if description := getString(row, "description"); description != "" {
+		if description := firstNonEmpty(getString(row, "description"), getString(row, "Description")); description != "" {
 			item.Description = &description
 		}
 		result = append(result, item)
@@ -416,6 +454,57 @@ func normalizeItemStats(rows []map[string]any, items map[string]model.Normalized
 			entry.Availability = &availability
 		}
 		result = append(result, entry)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].ItemExternalID < result[j].ItemExternalID
+	})
+	return result
+}
+
+func buildItemStatsFallback(rawItems []map[string]any, items map[string]model.NormalizedItem) []model.NormalizedItemStat {
+	result := []model.NormalizedItemStat{}
+	if len(rawItems) == 0 || len(items) == 0 {
+		return result
+	}
+	for _, row := range rawItems {
+		if row == nil {
+			continue
+		}
+		stdItem := getMap(row, "stdItem", "StdItem")
+		candidates := []string{
+			getString(row, "external_id"),
+			getString(row, "id"),
+			getString(row, "reference"),
+			getString(row, "className"),
+			getString(row, "itemName"),
+		}
+		if stdItem != nil {
+			candidates = append(candidates, getString(stdItem, "UUID"), getString(stdItem, "Name"))
+		}
+		external := strings.ToUpper(firstNonEmpty(candidates...))
+		if external == "" {
+			continue
+		}
+		if _, ok := items[external]; !ok {
+			continue
+		}
+		payload := map[string]any{}
+		if stdItem != nil && len(stdItem) > 0 {
+			payload["stdItem"] = stdItem
+		}
+		if classification, ok := getRawValue(row, "classification", "Classification"); ok {
+			payload["classification"] = classification
+		}
+		if tags, ok := getRawValue(row, "tags", "Tags"); ok {
+			payload["tags"] = tags
+		}
+		if len(payload) == 0 {
+			continue
+		}
+		result = append(result, model.NormalizedItemStat{
+			ItemExternalID: external,
+			Stats:          payload,
+		})
 	}
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].ItemExternalID < result[j].ItemExternalID
@@ -495,7 +584,554 @@ func normalizeInstalledItems(rows []map[string]any, variants map[string]model.No
 	return result
 }
 
-func buildV2Bundle(channel model.Channel, version string, manufacturers []model.NormalizedManufacturer, ships []model.NormalizedShip, variants []model.NormalizedShipVariant, items []model.NormalizedItem, hardpoints []model.NormalizedHardpoint, shipStats []model.NormalizedShipStat) model.NormalizedBundleV2 {
+const primaryRefSource = "SC_DATA"
+
+type refCollector map[string]map[string]struct{}
+
+func newRefCollector() refCollector {
+	return refCollector{}
+}
+
+func (r refCollector) add(source, id string) {
+	source = strings.TrimSpace(source)
+	id = strings.TrimSpace(id)
+	if source == "" || id == "" {
+		return
+	}
+	if r == nil {
+		return
+	}
+	bucket, ok := r[source]
+	if !ok {
+		bucket = map[string]struct{}{}
+		r[source] = bucket
+	}
+	bucket[id] = struct{}{}
+}
+
+func (r refCollector) merge(other refCollector) {
+	for source, ids := range other {
+		for id := range ids {
+			r.add(source, id)
+		}
+	}
+}
+
+func (r refCollector) list() []model.NormalizedExternalReference {
+	if len(r) == 0 {
+		return []model.NormalizedExternalReference{}
+	}
+	sources := make([]string, 0, len(r))
+	for source := range r {
+		sources = append(sources, source)
+	}
+	sort.Strings(sources)
+	result := make([]model.NormalizedExternalReference, 0, len(sources))
+	for _, source := range sources {
+		ids := r[source]
+		values := make([]string, 0, len(ids))
+		for id := range ids {
+			values = append(values, id)
+		}
+		sort.Strings(values)
+		for _, id := range values {
+			result = append(result, model.NormalizedExternalReference{Source: source, ID: id})
+		}
+	}
+	return result
+}
+
+type hullBuilder struct {
+	Key         string
+	Name        string
+	CompanyCode string
+	Refs        refCollector
+	Paints      map[string]struct{}
+}
+
+type variantBuilder struct {
+	ExternalID   string
+	HullKey      string
+	VariantCode  string
+	Name         string
+	Refs         refCollector
+	Stats        model.ShipVariantStatsV2
+	Thumbnail    *string
+	ReleasePatch *string
+}
+
+func ensureHullBuilder(builders map[string]*hullBuilder, grouping *ShipGrouping, key string) *hullBuilder {
+	key = strings.TrimSpace(strings.ToUpper(key))
+	if key == "" {
+		return nil
+	}
+	if builder, ok := builders[key]; ok {
+		return builder
+	}
+	builder := &hullBuilder{
+		Key:    key,
+		Refs:   newRefCollector(),
+		Paints: map[string]struct{}{},
+	}
+	if grouping != nil {
+		if def, ok := grouping.GetHull(key); ok {
+			if builder.Name == "" {
+				builder.Name = def.Name
+			}
+			if builder.CompanyCode == "" && def.Manufacturer != "" {
+				builder.CompanyCode = strings.ToUpper(def.Manufacturer)
+			}
+		}
+	}
+	builders[key] = builder
+	return builder
+}
+
+func ensureVariantBuilder(builders map[string]*variantBuilder, grouping *ShipGrouping, hullKey string, code lib.CanonicalVariantCode) *variantBuilder {
+	hullKey = strings.TrimSpace(strings.ToUpper(hullKey))
+	if hullKey == "" {
+		return nil
+	}
+	canonical := canonicalVariantID(hullKey, code)
+	if builder, ok := builders[canonical]; ok {
+		return builder
+	}
+	builder := &variantBuilder{
+		ExternalID:  canonical,
+		HullKey:     hullKey,
+		VariantCode: string(code),
+		Refs:        newRefCollector(),
+	}
+	if grouping != nil {
+		if hull, ok := grouping.GetHull(hullKey); ok {
+			builder.Name = lib.CanonicalVariantName(hull.Name, code)
+		}
+	}
+	if builder.Name == "" {
+		builder.Name = lib.CanonicalVariantName(hullKey, code)
+	}
+	builders[canonical] = builder
+	return builder
+}
+
+func canonicalVariantID(hullKey string, code lib.CanonicalVariantCode) string {
+	hull := strings.TrimSpace(strings.ToUpper(hullKey))
+	if hull == "" {
+		return ""
+	}
+	canonical := string(code)
+	if canonical == "" {
+		canonical = "BASE"
+	}
+	return hull + "_" + strings.ToUpper(canonical)
+}
+
+func canonicalizeHullBuilders(builders map[string]*hullBuilder, grouping *ShipGrouping) (map[string]*hullBuilder, map[string]string) {
+	if len(builders) == 0 {
+		return builders, map[string]string{}
+	}
+	canonical := map[string]*hullBuilder{}
+	aliases := map[string]string{}
+	for _, builder := range builders {
+		if builder == nil {
+			continue
+		}
+		canonicalKey := strings.TrimSpace(strings.ToUpper(builder.Key))
+		if canonicalKey == "" {
+			continue
+		}
+		if grouping != nil {
+			candidates := []string{canonicalKey}
+			for _, ref := range builder.Refs.list() {
+				if ref.ID != "" {
+					candidates = append(candidates, ref.ID)
+				}
+			}
+			if assignment, ok := grouping.LookupShipID(candidates...); ok && strings.TrimSpace(assignment.HullKey) != "" {
+				canonicalKey = strings.TrimSpace(strings.ToUpper(assignment.HullKey))
+			} else if def, ok := grouping.GetHull(canonicalKey); ok && strings.TrimSpace(def.HullKey) != "" {
+				canonicalKey = strings.TrimSpace(strings.ToUpper(def.HullKey))
+			}
+		}
+		aliases[canonicalKey] = canonicalKey
+		target, exists := canonical[canonicalKey]
+		if !exists {
+			target = &hullBuilder{
+				Key:    canonicalKey,
+				Refs:   newRefCollector(),
+				Paints: map[string]struct{}{},
+			}
+		}
+		aliases[strings.TrimSpace(strings.ToUpper(builder.Key))] = canonicalKey
+		if target.Name == "" && strings.TrimSpace(builder.Name) != "" {
+			target.Name = builder.Name
+		}
+		if target.CompanyCode == "" && strings.TrimSpace(builder.CompanyCode) != "" {
+			target.CompanyCode = builder.CompanyCode
+		}
+		if target.Paints == nil {
+			target.Paints = map[string]struct{}{}
+		}
+		for paint := range builder.Paints {
+			target.Paints[paint] = struct{}{}
+		}
+		target.Refs.merge(builder.Refs)
+		for _, ref := range builder.Refs.list() {
+			if ref.ID != "" {
+				aliases[strings.TrimSpace(strings.ToUpper(ref.ID))] = canonicalKey
+			}
+		}
+		canonical[canonicalKey] = target
+	}
+	return canonical, aliases
+}
+
+func canonicalizeVariantBuilders(builders map[string]*variantBuilder, grouping *ShipGrouping, hullBuilders map[string]*hullBuilder, hullAliases map[string]string) map[string]*variantBuilder {
+	if len(builders) == 0 {
+		return builders
+	}
+	canonical := map[string]*variantBuilder{}
+	for _, builder := range builders {
+		if builder == nil {
+			continue
+		}
+		originalHull := strings.TrimSpace(strings.ToUpper(builder.HullKey))
+		if originalHull == "" {
+			continue
+		}
+		canonicalHull := originalHull
+		if mapped, ok := hullAliases[originalHull]; ok && mapped != "" {
+			canonicalHull = mapped
+		} else if grouping != nil {
+			if assignment, ok := grouping.LookupShipVariantID(builder.ExternalID); ok && strings.TrimSpace(assignment.HullKey) != "" {
+				canonicalHull = strings.TrimSpace(strings.ToUpper(assignment.HullKey))
+			} else {
+				candidates := []string{originalHull}
+				for _, ref := range builder.Refs.list() {
+					if ref.ID != "" {
+						candidates = append(candidates, ref.ID)
+					}
+				}
+				if assignment, ok := grouping.LookupShipID(candidates...); ok && strings.TrimSpace(assignment.HullKey) != "" {
+					canonicalHull = strings.TrimSpace(strings.ToUpper(assignment.HullKey))
+				}
+			}
+		}
+		code := lib.CanonicalVariantCode(builder.VariantCode)
+		canonicalID := canonicalVariantID(canonicalHull, code)
+		target, exists := canonical[canonicalID]
+		if !exists {
+			target = &variantBuilder{
+				ExternalID:  canonicalID,
+				HullKey:     canonicalHull,
+				VariantCode: string(code),
+				Refs:        newRefCollector(),
+			}
+		}
+		if target.Name == "" && strings.TrimSpace(builder.Name) != "" {
+			target.Name = builder.Name
+		}
+		if target.Thumbnail == nil && builder.Thumbnail != nil {
+			target.Thumbnail = builder.Thumbnail
+		}
+		if target.ReleasePatch == nil && builder.ReleasePatch != nil {
+			target.ReleasePatch = builder.ReleasePatch
+		}
+		if isEmptyVariantStats(target.Stats) && !isEmptyVariantStats(builder.Stats) {
+			target.Stats = builder.Stats
+		}
+		target.Refs.merge(builder.Refs)
+		canonical[canonicalID] = target
+	}
+	return canonical
+}
+
+func isEmptyVariantStats(stats model.ShipVariantStatsV2) bool {
+	return stats.Length == nil &&
+		stats.Width == nil &&
+		stats.Height == nil &&
+		stats.Mass == nil &&
+		stats.CargoCapacity == nil &&
+		stats.Crew == nil &&
+		stats.Performance == nil &&
+		stats.Propulsion == nil &&
+		stats.Defence == nil &&
+		len(stats.Insurance) == 0 &&
+		len(stats.Raw) == 0 &&
+		len(stats.Hardpoints) == 0 &&
+		len(stats.Additional) == 0
+}
+
+func filterHullBuildersByGrouping(builders map[string]*hullBuilder, grouping *ShipGrouping) map[string]*hullBuilder {
+	if grouping == nil || len(builders) == 0 {
+		return builders
+	}
+	filtered := map[string]*hullBuilder{}
+	for key, builder := range builders {
+		if builder == nil {
+			continue
+		}
+		if _, ok := grouping.GetHull(key); !ok {
+			continue
+		}
+		filtered[key] = builder
+	}
+	return filtered
+}
+
+func filterVariantBuildersByGrouping(builders map[string]*variantBuilder, grouping *ShipGrouping) map[string]*variantBuilder {
+	if grouping == nil || len(builders) == 0 {
+		return builders
+	}
+	filtered := map[string]*variantBuilder{}
+	for key, builder := range builders {
+		if builder == nil {
+			continue
+		}
+		code := strings.TrimSpace(strings.ToUpper(builder.VariantCode))
+		if code == "" {
+			code = "BASE"
+		}
+		if _, ok := grouping.LookupVariant(builder.HullKey, code); !ok {
+			continue
+		}
+		filtered[key] = builder
+	}
+	return filtered
+}
+
+func canonicalVariantCode(code string) lib.CanonicalVariantCode {
+	if strings.TrimSpace(code) == "" {
+		return "BASE"
+	}
+	return lib.CanonicalVariantCode(sanitizeVariantCode(code))
+}
+
+func addStringToSet(set map[string]struct{}, value string) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return
+	}
+	set[value] = struct{}{}
+}
+
+func collectRawShipReferences(grouping *ShipGrouping, hullBuilders map[string]*hullBuilder, variantBuilders map[string]*variantBuilder, rows []map[string]any) {
+	if len(rows) == 0 {
+		return
+	}
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		candidateValues := []string{
+			toString(row["id"]),
+			toString(row["ID"]),
+			toString(row["uuid"]),
+			toString(row["UUID"]),
+			toString(row["ClassName"]),
+			toString(row["class_name"]),
+			toString(row["Name"]),
+			toString(row["name"]),
+		}
+		var assignment VariantAssignment
+		foundVariant := false
+		if grouping != nil {
+			for _, candidate := range candidateValues {
+				if candidate == "" {
+					continue
+				}
+				if match, ok := grouping.LookupShipVariantID(candidate); ok {
+					assignment = match
+					foundVariant = true
+					break
+				}
+			}
+		}
+		var hullAssignment VariantAssignment
+		foundHull := false
+		if grouping != nil {
+			for _, candidate := range candidateValues {
+				if candidate == "" {
+					continue
+				}
+				if match, ok := grouping.LookupShipID(candidate); ok {
+					hullAssignment = match
+					foundHull = true
+					break
+				}
+			}
+		}
+		var hb *hullBuilder
+		if foundVariant {
+			hb = ensureHullBuilder(hullBuilders, grouping, assignment.HullKey)
+			vb := ensureVariantBuilder(variantBuilders, grouping, assignment.HullKey, assignment.VariantCode)
+			if vb != nil {
+				addRawShipRowRefs(vb, row)
+			}
+		} else if foundHull {
+			hb = ensureHullBuilder(hullBuilders, grouping, hullAssignment.HullKey)
+		}
+		if hb != nil {
+			addRawShipRowRefsToHull(hb, row)
+		}
+	}
+}
+
+func addRawShipRowRefsToHull(builder *hullBuilder, row map[string]any) {
+	if builder == nil || row == nil {
+		return
+	}
+	if builder.Name == "" {
+		if name := strings.TrimSpace(toString(row["Name"])); name != "" {
+			builder.Name = name
+		}
+	}
+	if builder.CompanyCode == "" {
+		if manu, ok := row["manufacturer"].(map[string]any); ok {
+			if code := strings.TrimSpace(toString(manu["code"])); code != "" {
+				builder.CompanyCode = strings.ToUpper(code)
+			}
+		}
+		if manu, ok := row["Manufacturer"].(map[string]any); ok && builder.CompanyCode == "" {
+			if code := strings.TrimSpace(toString(manu["Code"])); code != "" {
+				builder.CompanyCode = strings.ToUpper(code)
+			}
+		}
+	}
+	if id := strings.TrimSpace(toString(row["id"])); id != "" {
+		builder.Refs.add("raw:ships.id", id)
+	}
+	if uuid := strings.TrimSpace(toString(row["UUID"])); uuid != "" {
+		builder.Refs.add("raw:ships.UUID", uuid)
+	}
+	if className := strings.TrimSpace(toString(row["ClassName"])); className != "" {
+		builder.Refs.add("raw:ships.ClassName", className)
+	}
+	if name := strings.TrimSpace(toString(row["Name"])); name != "" {
+		builder.Refs.add("raw:ships.Name", name)
+	}
+	if primary := strings.TrimSpace(toString(row["primary"])); primary != "" {
+		builder.Refs.add("raw:ships.primary", primary)
+	}
+}
+
+func addRawShipRowRefs(builder *variantBuilder, row map[string]any) {
+	if builder == nil || row == nil {
+		return
+	}
+	if builder.Name == "" {
+		if name := strings.TrimSpace(toString(row["Name"])); name != "" {
+			builder.Name = name
+		}
+	}
+	if id := strings.TrimSpace(toString(row["id"])); id != "" {
+		builder.Refs.add("raw:ships.id", id)
+	}
+	if uuid := strings.TrimSpace(toString(row["UUID"])); uuid != "" {
+		builder.Refs.add("raw:ships.UUID", uuid)
+	}
+	if className := strings.TrimSpace(toString(row["ClassName"])); className != "" {
+		builder.Refs.add("raw:ships.ClassName", className)
+	}
+	if name := strings.TrimSpace(toString(row["Name"])); name != "" {
+		builder.Refs.add("raw:ships.Name", name)
+	}
+	if primary := strings.TrimSpace(toString(row["primary"])); primary != "" {
+		builder.Refs.add("raw:ships.primary", primary)
+	}
+}
+
+func collectRawVariantReferences(grouping *ShipGrouping, hullBuilders map[string]*hullBuilder, variantBuilders map[string]*variantBuilder, rows []map[string]any) {
+	if len(rows) == 0 {
+		return
+	}
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		rawID := strings.TrimSpace(toString(row["id"]))
+		rawShipID := strings.TrimSpace(toString(row["ship_id"]))
+		variantCode := strings.TrimSpace(toString(row["variant_code"]))
+		name := strings.TrimSpace(toString(row["name"]))
+
+		var assignment VariantAssignment
+		found := false
+		if grouping != nil && rawID != "" {
+			if match, ok := grouping.LookupShipVariantID(rawID); ok {
+				assignment = match
+				found = true
+			}
+		}
+		if !found && grouping != nil && rawShipID != "" {
+			if hullMatch, ok := grouping.LookupShipID(rawShipID); ok {
+				candidates := []string{}
+				if variantCode != "" {
+					candidates = append(candidates, variantCode)
+				}
+				if name != "" {
+					candidates = append(candidates, name)
+				}
+				if rawID != "" {
+					candidates = append(candidates, rawID)
+				}
+				if len(candidates) > 0 {
+					if match, ok := grouping.LookupVariant(hullMatch.HullKey, candidates...); ok {
+						assignment = match
+						found = true
+					}
+				}
+			}
+		}
+
+		hullKey := strings.ToUpper(rawShipID)
+		if found {
+			hullKey = assignment.HullKey
+		}
+		if hullKey == "" {
+			continue
+		}
+		hb := ensureHullBuilder(hullBuilders, grouping, hullKey)
+		var vb *variantBuilder
+		if found {
+			vb = ensureVariantBuilder(variantBuilders, grouping, assignment.HullKey, assignment.VariantCode)
+		} else {
+			vb = ensureVariantBuilder(variantBuilders, grouping, hullKey, canonicalVariantCode(variantCode))
+			if vb == nil {
+				vb = ensureVariantBuilder(variantBuilders, grouping, hullKey, canonicalVariantCode("BASE"))
+			}
+		}
+		if vb == nil {
+			continue
+		}
+		if builderName := strings.TrimSpace(name); builderName != "" && vb.Name == "" {
+			vb.Name = builderName
+		}
+		if variantCode != "" && vb.VariantCode == "" {
+			vb.VariantCode = sanitizeVariantCode(variantCode)
+		}
+		if rawID != "" {
+			vb.Refs.add("raw:ship_variants.id", rawID)
+		}
+		if rawShipID != "" {
+			if hb != nil {
+				hb.Refs.add("raw:ship_variants.ship_id", rawShipID)
+			}
+			vb.Refs.add("raw:ship_variants.ship_id", rawShipID)
+		}
+		if variantCode != "" {
+			vb.Refs.add("raw:ship_variants.code", variantCode)
+		}
+		if release := strings.TrimSpace(toString(row["release_patch"])); release != "" {
+			releaseCopy := release
+			vb.ReleasePatch = &releaseCopy
+		}
+		if name != "" {
+			vb.Refs.add("raw:ship_variants.name", name)
+		}
+	}
+}
+
+func buildV2Bundle(channel model.Channel, version string, manufacturers []model.NormalizedManufacturer, ships []model.NormalizedShip, variants []model.NormalizedShipVariant, items []model.NormalizedItem, itemStats []model.NormalizedItemStat, hardpoints []model.NormalizedHardpoint, shipStats []model.NormalizedShipStat, grouping *ShipGrouping, rawShips []map[string]any, rawVariants []map[string]any, hardpointsAsCollection bool) model.NormalizedBundleV2 {
 	companyMap := map[string]model.NormalizedCompanyV2{}
 	for _, manufacturer := range manufacturers {
 		company := model.NormalizedCompanyV2{
@@ -515,20 +1151,6 @@ func buildV2Bundle(channel model.Channel, version string, manufacturers []model.
 		return companies[i].Code < companies[j].Code
 	})
 
-	shipV2 := make([]model.NormalizedShipV2, 0, len(ships))
-	for _, ship := range ships {
-		entry := model.NormalizedShipV2{
-			ExternalID:  ship.ExternalID,
-			Name:        ship.Name,
-			CompanyCode: ship.ManufacturerCode,
-		}
-		entry.ExternalRefs = []model.NormalizedExternalReference{}
-		shipV2 = append(shipV2, entry)
-	}
-	sort.Slice(shipV2, func(i, j int) bool {
-		return shipV2[i].ExternalID < shipV2[j].ExternalID
-	})
-
 	shipStatsMap := map[string]model.ShipVariantStatsV2{}
 	for _, stat := range shipStats {
 		shipStatsMap[stat.ShipVariantExternalID] = model.ShipVariantStatsV2{
@@ -536,52 +1158,231 @@ func buildV2Bundle(channel model.Channel, version string, manufacturers []model.
 		}
 	}
 
-	variantV2 := make([]model.NormalizedShipVariantV2, 0, len(variants))
+	hardpointsByVariant := map[string][]model.NormalizedHardpointV2{}
+	for _, hardpoint := range hardpoints {
+		entry := model.NormalizedHardpointV2{
+			ExternalID:          hardpoint.ExternalID,
+			ShipVariantExternal: hardpoint.ShipVariantExternalID,
+			Code:                hardpoint.Code,
+			Category:            hardpoint.Category,
+			Position:            hardpoint.Position,
+			Size:                hardpoint.Size,
+			Gimballed:           hardpoint.Gimballed,
+			Powered:             hardpoint.Powered,
+			Seats:               hardpoint.Seats,
+		}
+		hardpointsByVariant[hardpoint.ShipVariantExternalID] = append(hardpointsByVariant[hardpoint.ShipVariantExternalID], entry)
+	}
+	for key, bucket := range hardpointsByVariant {
+		sort.Slice(bucket, func(i, j int) bool {
+			return bucket[i].ExternalID < bucket[j].ExternalID
+		})
+		hardpointsByVariant[key] = bucket
+	}
+
+	hullBuilders := map[string]*hullBuilder{}
+	variantBuilders := map[string]*variantBuilder{}
+
+	for _, ship := range ships {
+		hb := ensureHullBuilder(hullBuilders, grouping, ship.ExternalID)
+		if hb == nil {
+			continue
+		}
+		if ship.Name != "" {
+			hb.Name = ship.Name
+		}
+		if ship.ManufacturerCode != "" {
+			hb.CompanyCode = ship.ManufacturerCode
+		}
+		hb.Refs.add(primaryRefSource, ship.ExternalID)
+	}
+
 	for _, variant := range variants {
-		variantCode := ""
+		hullKey := strings.ToUpper(strings.TrimSpace(variant.ShipExternalID))
+		if hullKey == "" {
+			continue
+		}
+		code := ""
 		if variant.VariantCode != nil {
-			variantCode = *variant.VariantCode
+			code = strings.TrimSpace(strings.ToUpper(*variant.VariantCode))
 		}
-		variantName := ""
-		if variant.Name != nil {
-			variantName = *variant.Name
+		if code == "" {
+			code = "BASE"
 		}
-		if variantName == "" {
-			variantName = lib.CanonicalVariantName(shipNameByID(ships, variant.ShipExternalID), lib.CanonicalVariantCode(variantCode))
+		vb := ensureVariantBuilder(variantBuilders, grouping, hullKey, canonicalVariantCode(code))
+		if vb == nil {
+			continue
 		}
-		assignmentName := variantName
-		v2 := model.NormalizedShipVariantV2{
-			ExternalID:   variant.ExternalID,
-			ShipExternal: variant.ShipExternalID,
-			Name:         assignmentName,
-			ExternalRefs: []model.NormalizedExternalReference{},
-			Stats:        shipStatsMap[variant.ExternalID],
+		vb.Refs.add(primaryRefSource, variant.ExternalID)
+		if variant.Name != nil && strings.TrimSpace(*variant.Name) != "" {
+			vb.Name = *variant.Name
 		}
-		code := lib.CanonicalVariantCode(variantCode)
-		if variantCode != "" {
-			v2.VariantCode = &variantCode
+		if code != "" {
+			vb.VariantCode = sanitizeVariantCode(code)
 		}
-		detection := lib.DetectEditionOrLivery(variantName, code)
+		if variant.Thumbnail != nil {
+			vb.Thumbnail = variant.Thumbnail
+		}
+		if stats, ok := shipStatsMap[variant.ExternalID]; ok {
+			vb.Stats = stats
+		}
+		hb := ensureHullBuilder(hullBuilders, grouping, hullKey)
+		if hb != nil {
+			hb.Refs.add(primaryRefSource, hullKey)
+		}
+	}
+
+	if grouping != nil {
+		for _, assignment := range grouping.Entries() {
+			hb := ensureHullBuilder(hullBuilders, grouping, assignment.HullKey)
+			if hb != nil {
+				if hb.Name == "" {
+					hb.Name = assignment.Name
+				}
+				if hb.CompanyCode == "" && assignment.Manufacturer != "" {
+					hb.CompanyCode = strings.ToUpper(assignment.Manufacturer)
+				}
+				hb.Refs.add(primaryRefSource, assignment.HullKey)
+			}
+			vb := ensureVariantBuilder(variantBuilders, grouping, assignment.HullKey, assignment.VariantCode)
+			if vb != nil {
+				if len(assignment.Names) > 0 && strings.TrimSpace(assignment.Names[0]) != "" {
+					vb.Name = assignment.Names[0]
+				}
+				vb.Refs.add(primaryRefSource, vb.ExternalID)
+			}
+		}
+	}
+
+	collectRawShipReferences(grouping, hullBuilders, variantBuilders, rawShips)
+	collectRawVariantReferences(grouping, hullBuilders, variantBuilders, rawVariants)
+
+	var hullAliases map[string]string
+	hullBuilders, hullAliases = canonicalizeHullBuilders(hullBuilders, grouping)
+	variantBuilders = canonicalizeVariantBuilders(variantBuilders, grouping, hullBuilders, hullAliases)
+	if grouping != nil {
+		hullBuilders = filterHullBuildersByGrouping(hullBuilders, grouping)
+		variantBuilders = filterVariantBuildersByGrouping(variantBuilders, grouping)
+	}
+
+	shipV2 := make([]model.NormalizedShipV2, 0, len(hullBuilders))
+	for key, builder := range hullBuilders {
+		name := builder.Name
+		if name == "" {
+			name = key
+		}
+		entry := model.NormalizedShipV2{
+			ExternalID:  key,
+			Name:        name,
+			CompanyCode: builder.CompanyCode,
+			ExternalRefs: func() []model.NormalizedExternalReference {
+				builder.Refs.add(primaryRefSource, key)
+				refs := builder.Refs.list()
+				return refs
+			}(),
+		}
+		if len(builder.Paints) > 0 {
+			paints := make([]string, 0, len(builder.Paints))
+			for paint := range builder.Paints {
+				paints = append(paints, paint)
+			}
+			sort.Strings(paints)
+			entry.Paints = paints
+		}
+		shipV2 = append(shipV2, entry)
+	}
+	sort.Slice(shipV2, func(i, j int) bool {
+		return shipV2[i].ExternalID < shipV2[j].ExternalID
+	})
+
+	variantV2 := make([]model.NormalizedShipVariantV2, 0, len(variantBuilders))
+	for key, builder := range variantBuilders {
+		hb := hullBuilders[builder.HullKey]
+		hullName := builder.HullKey
+		if hb != nil && strings.TrimSpace(hb.Name) != "" {
+			hullName = hb.Name
+		}
+		name := builder.Name
+		if name == "" {
+			name = lib.CanonicalVariantName(hullName, lib.CanonicalVariantCode(builder.VariantCode))
+		}
+		stats := builder.Stats
+		if stat, ok := shipStatsMap[key]; ok {
+			stats = stat
+		}
+		if !hardpointsAsCollection {
+			if bucket, ok := hardpointsByVariant[key]; ok && len(bucket) > 0 {
+				stats.Hardpoints = append([]model.NormalizedHardpointV2(nil), bucket...)
+			}
+		}
+		builder.Refs.add(primaryRefSource, key)
+		refs := builder.Refs.list()
+		variantCodeValue := sanitizeVariantCode(builder.VariantCode)
+		if variantCodeValue == "" {
+			variantCodeValue = "BASE"
+		}
+		variant := model.NormalizedShipVariantV2{
+			ExternalID:   key,
+			ShipExternal: builder.HullKey,
+			Name:         name,
+			ExternalRefs: refs,
+			Stats:        stats,
+		}
+		codeValue := strings.ToUpper(variantCodeValue)
+		variant.VariantCode = &codeValue
+		if builder.Thumbnail != nil {
+			variant.Thumbnail = builder.Thumbnail
+		}
+		if builder.ReleasePatch != nil {
+			variant.ReleasePatch = builder.ReleasePatch
+		}
+		detection := lib.DetectEditionOrLivery(name, lib.CanonicalVariantCode(codeValue))
 		if detection.EditionCode != "" {
-			codeValue := detection.EditionCode
-			v2.VariantCode = &codeValue
+			codeOverride := detection.EditionCode
+			variant.VariantCode = &codeOverride
 		}
 		if detection.Livery != nil {
-			v2.ReleasePatch = detection.Livery
+			variant.ReleasePatch = detection.Livery
 		}
-		variantV2 = append(variantV2, v2)
+		variantV2 = append(variantV2, variant)
 	}
 	sort.Slice(variantV2, func(i, j int) bool {
 		return variantV2[i].ExternalID < variantV2[j].ExternalID
 	})
 
+	statsByItem := map[string]map[string]any{}
+	for _, stat := range itemStats {
+		key := strings.ToUpper(strings.TrimSpace(stat.ItemExternalID))
+		if key == "" {
+			continue
+		}
+		payload := cloneAnyMap(stat.Stats)
+		if payload == nil {
+			payload = map[string]any{}
+		}
+		if stat.PriceAUEC != nil {
+			payload["price_auec"] = *stat.PriceAUEC
+		}
+		if stat.Availability != nil {
+			if availability := strings.TrimSpace(*stat.Availability); availability != "" {
+				payload["availability"] = availability
+			}
+		}
+		statsByItem[key] = payload
+	}
+
 	itemV2 := make([]model.NormalizedItemV2, 0, len(items))
 	for _, item := range items {
+		itemKey := strings.ToUpper(strings.TrimSpace(item.ExternalID))
+		stats := cloneAnyMap(statsByItem[itemKey])
+		if stats == nil {
+			stats = map[string]any{}
+		}
 		entry := model.NormalizedItemV2{
 			ExternalID:   item.ExternalID,
 			Name:         item.Name,
 			Type:         item.Type,
-			Stats:        map[string]any{},
+			Stats:        stats,
 			ExternalRefs: []model.NormalizedExternalReference{},
 		}
 		if item.ManufacturerCode != nil {
@@ -613,24 +1414,18 @@ func buildV2Bundle(channel model.Channel, version string, manufacturers []model.
 		return itemV2[i].ExternalID < itemV2[j].ExternalID
 	})
 
-	hardpointV2 := make([]model.NormalizedHardpointV2, 0, len(hardpoints))
-	for _, hardpoint := range hardpoints {
-		entry := model.NormalizedHardpointV2{
-			ExternalID:          hardpoint.ExternalID,
-			ShipVariantExternal: hardpoint.ShipVariantExternalID,
-			Code:                hardpoint.Code,
-			Category:            hardpoint.Category,
+	var hardpointV2 []model.NormalizedHardpointV2
+	if hardpointsAsCollection {
+		variantKeys := make([]string, 0, len(hardpointsByVariant))
+		for key := range hardpointsByVariant {
+			variantKeys = append(variantKeys, key)
 		}
-		entry.Position = hardpoint.Position
-		entry.Size = hardpoint.Size
-		entry.Gimballed = hardpoint.Gimballed
-		entry.Powered = hardpoint.Powered
-		entry.Seats = hardpoint.Seats
-		hardpointV2 = append(hardpointV2, entry)
+		sort.Strings(variantKeys)
+		hardpointV2 = make([]model.NormalizedHardpointV2, 0, len(hardpoints))
+		for _, variantKey := range variantKeys {
+			hardpointV2 = append(hardpointV2, hardpointsByVariant[variantKey]...)
+		}
 	}
-	sort.Slice(hardpointV2, func(i, j int) bool {
-		return hardpointV2[i].ExternalID < hardpointV2[j].ExternalID
-	})
 
 	return model.NormalizedBundleV2{
 		Channel:      channel,
@@ -650,4 +1445,18 @@ func shipNameByID(ships []model.NormalizedShip, externalID string) string {
 		}
 	}
 	return externalID
+}
+
+func cloneAnyMap(source map[string]any) map[string]any {
+	if source == nil {
+		return nil
+	}
+	if len(source) == 0 {
+		return map[string]any{}
+	}
+	result := make(map[string]any, len(source))
+	for key, value := range source {
+		result[key] = value
+	}
+	return result
 }

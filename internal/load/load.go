@@ -25,7 +25,10 @@ type LoadStatistics struct {
 
 // Options configure the loader.
 type Options struct {
-	Client *directus.Client
+	Client                     *directus.Client
+	DefaultCompanyCategory     string
+	AllowedItemTypes           []string
+	AllowedHardpointCategories []string
 }
 
 // Run writes the normalized bundle to Directus.
@@ -42,7 +45,7 @@ func Run(ctx context.Context, result *transform.Result, opts Options) (*Result, 
 		}
 	}
 
-	builder := newBuilder(ctx, client, result)
+	builder := newBuilder(ctx, client, result, opts)
 
 	if err := builder.ensureBuild(); err != nil {
 		return nil, err

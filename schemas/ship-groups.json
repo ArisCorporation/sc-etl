@@ -139,25 +139,13 @@
         "BASE": "ANVL_Ballista"
       }
     },
-    "ANVL_C8": {
+    "ANVL_C8 ": {
       "manufacturer": "ANVL",
-      "name": "C8",
+      "name": "Pisces",
       "variants": {
-        "PISCES": "ANVL_C8_Pisces"
-      }
-    },
-    "ANVL_C8R": {
-      "manufacturer": "ANVL",
-      "name": "C8r",
-      "variants": {
-        "PISCES": "ANVL_C8R_Pisces"
-      }
-    },
-    "ANVL_C8X": {
-      "manufacturer": "ANVL",
-      "name": "C8x",
-      "variants": {
-        "PISCES_EXPEDITION": "ANVL_C8X_Pisces_Expedition"
+        "C8": "ANVL_C8_Pisces",
+        "C8X": "ANVL_C8X_Pisces_Expedition",
+        "C8R": "ANVL_C8R_Pisces"
       }
     },
     "ANVL_CARRACK": {
@@ -847,7 +835,7 @@
     },
     "ORIG_890JUMP": {
       "manufacturer": "ORIG",
-      "name": "890jump",
+      "name": "890 Jump",
       "variants": {
         "BASE": "ORIG_890Jump"
       }

@@ -2,75 +2,12 @@ package load
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/ArisCorporation/sc-goetl/internal/diff"
 	"github.com/ArisCorporation/sc-goetl/internal/model"
 )
-
-var hardpointCategoryAllowlist = []string{
-	"Shield",
-	"ShieldController",
-	"QuantumDrive",
-	"Cooler",
-	"CoolerController",
-	"PowerPlant",
-	"FuelTank",
-	"ExternalFuelTank",
-	"FuelIntake",
-	"QuantumFuelTank",
-	"Radar",
-	"AIModule",
-	"WeaponGun",
-	"RailGun",
-	"WeaponDefensive",
-	"WeaponController",
-	"WeaponMount",
-	"Missile",
-	"MissileLauncher",
-	"MissileController",
-	"Turret",
-	"TurretBase",
-	"UtilityTurret",
-	"Armor",
-	"MainThruster",
-	"ManneuverThruster",
-	"Relay",
-	"ToolArm",
-	"SalvageHead",
-	"SalvageController",
-	"SalvageModifier",
-	"SalvageFillerStation",
-	"SalvageFieldEmitter",
-	"SalvageFieldSupporter",
-	"SalvageInternalStorage",
-	"MiningController",
-	"WeaponMining",
-	"TractorBeam",
-	"TowingBeam",
-	"CapacitorAssignmentController",
-	"CommsController",
-	"EnergyController",
-	"FuelController",
-	"FlightController",
-	"LandingSystem",
-	"DockingCollar",
-	"Cargo",
-	"JumpDrive",
-	"LifeSupportGenerator",
-	"WheeledController",
-	"Container",
-	"AttachedPart",
-	"SelfDestruct",
-}
-
-var hardpointCategorySet = func() map[string]struct{} {
-	set := map[string]struct{}{}
-	for _, value := range hardpointCategoryAllowlist {
-		set[strings.ToUpper(value)] = struct{}{}
-	}
-	return set
-}()
 
 type hardpointSnapshot struct {
 	ShipVariant  string
@@ -99,12 +36,7 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 		return nil
 	}
 	fields := []string{"id", "external_id", "ship_variant", "ship_variant.id", "code", "category", "position", "size", "gimballed", "powered", "path", "meta", "parent", "parent.id", "item", "item.id", "item_quantity", "is_leaf"}
-	filter := map[string]any{
-		"_or": []map[string]any{},
-	}
-	for _, category := range hardpointCategoryAllowlist {
-		filter["_or"] = append(filter["_or"].([]map[string]any), map[string]any{"category": map[string]any{"_eq": category}})
-	}
+	filter := buildEqualityFilter("category", b.allowedHardpointCategoryList)
 	rows, err := fetchAllRows(b.ctx, b.client, b.collections.Hardpoints, fields, filter)
 	if err != nil {
 		return err
@@ -121,14 +53,36 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 		parentLookup[external] = state.ID
 	}
 
+	sort.Slice(hardpoints, func(i, j int) bool {
+		left := strings.ToUpper(strings.TrimSpace(hardpoints[i].ExternalID))
+		right := strings.ToUpper(strings.TrimSpace(hardpoints[j].ExternalID))
+		leftDepth := hardpointDepth(left)
+		rightDepth := hardpointDepth(right)
+		if leftDepth == rightDepth {
+			return left < right
+		}
+		return leftDepth < rightDepth
+	})
+
+	seen := map[string]struct{}{}
+
 	for _, hardpoint := range hardpoints {
 		external := strings.ToUpper(strings.TrimSpace(hardpoint.ExternalID))
 		if external == "" {
 			continue
 		}
-		categoryUpper := strings.ToUpper(strings.TrimSpace(hardpoint.Category))
-		if _, ok := hardpointCategorySet[categoryUpper]; !ok {
+		if _, exists := seen[external]; exists {
 			continue
+		}
+		seen[external] = struct{}{}
+		categoryUpper := strings.ToUpper(strings.TrimSpace(hardpoint.Category))
+		if categoryUpper == "" {
+			continue
+		}
+		if len(b.allowedHardpointCategories) > 0 {
+			if _, ok := b.allowedHardpointCategories[categoryUpper]; !ok {
+				continue
+			}
 		}
 		variantID := variantIDs[strings.ToUpper(strings.TrimSpace(hardpoint.ShipVariantExternal))]
 		if variantID == "" {
@@ -141,14 +95,18 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 		}
 		installedEntry := installed[external]
 		itemID := ""
+		quantity := installedEntry.Quantity
 		if installedEntry.ItemExternalID != "" {
 			itemID = itemIDs[strings.ToUpper(installedEntry.ItemExternalID)]
+			if itemID == "" {
+				quantity = 0
+			}
 		}
-		quantity := installedEntry.Quantity
 		var quantityPtr *int
-		if quantity > 0 {
+		if itemID != "" && quantity > 0 {
 			quantityPtr = &quantity
 		}
+		hasItem := itemID != ""
 		meta := map[string]any{}
 		if hardpoint.Seats != nil {
 			meta["seats"] = *hardpoint.Seats
@@ -184,7 +142,7 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 			Parent:       parentID,
 			Item:         itemID,
 			ItemQuantity: quantityPtr,
-			IsLeaf:       itemID != "",
+			IsLeaf:       hasItem,
 		}
 		payload := map[string]any{
 			"external_id":   snapshot.ExternalID,
@@ -207,7 +165,9 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 			diffPayload := diff.Compute(hardpointSnapshotMap(existing.Snapshot), hardpointSnapshotMap(snapshot), []string{"ship_variant", "code", "category", "position", "size", "gimballed", "powered", "path", "meta", "parent", "item", "item_quantity", "is_leaf"})
 			if diffPayload != nil {
 				if _, err := b.client.UpdateOneWithVersion(b.ctx, b.collections.Hardpoints, existing.ID, payload, versionName, promote); err != nil {
-					return fmt.Errorf("update hardpoint %s: %w", external, err)
+					if versionErr := handleVersionError(err); versionErr != nil {
+						return fmt.Errorf("update hardpoint %s: %w", external, versionErr)
+					}
 				}
 				existing.Snapshot = snapshot
 				states[external] = existing
@@ -217,7 +177,9 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 		}
 		created, err := b.client.CreateOneWithVersion(b.ctx, b.collections.Hardpoints, payload, versionName, promote)
 		if err != nil {
-			return fmt.Errorf("create hardpoint %s: %w", external, err)
+			if versionErr := handleVersionError(err); versionErr != nil {
+				return fmt.Errorf("create hardpoint %s: %w", external, versionErr)
+			}
 		}
 		id := toString(created["id"])
 		states[external] = hardpointState{ID: id, Snapshot: snapshot}
@@ -299,4 +261,16 @@ func deriveHardpointPath(externalID string, fallbackCode string) (parentExternal
 		parentExternal = variant + ":" + strings.Join(segments[:len(segments)-1], "/")
 	}
 	return parentExternal, rest, code
+}
+
+func hardpointDepth(external string) int {
+	external = strings.TrimSpace(external)
+	if external == "" {
+		return 0
+	}
+	parts := strings.SplitN(external, ":", 2)
+	if len(parts) < 2 || parts[1] == "" {
+		return 1
+	}
+	return len(strings.Split(parts[1], "/"))
 }

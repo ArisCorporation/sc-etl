@@ -38,6 +38,14 @@ func (b *builder) syncCompanies(companies []model.NormalizedCompanyV2) (map[stri
 	}
 
 	defaultCategory := pickDefaultCompanyCategoryState(byCode)
+	if b.defaultCompanyCategory != nil {
+		if defaultCategory == nil || *defaultCategory != *b.defaultCompanyCategory {
+			utils.Logger().Info("Using configured default company category", "category", *b.defaultCompanyCategory)
+		}
+		defaultCategory = b.defaultCompanyCategory
+	} else if defaultCategory == nil {
+		utils.Logger().Warn("No default company category detected; skipping creation of missing companies.")
+	}
 
 	idMap := map[string]string{}
 	for _, company := range companies {

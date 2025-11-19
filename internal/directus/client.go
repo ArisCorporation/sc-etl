@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +22,22 @@ type Client struct {
 	BaseURL    *url.URL
 	Token      string
 	HTTPClient *http.Client
+}
+
+// RequestError captures HTTP failures when communicating with Directus.
+type RequestError struct {
+	Method     string
+	Path       string
+	StatusCode int
+	Status     string
+	Body       string
+}
+
+func (e *RequestError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return fmt.Sprintf("directus %s %s failed: %s (body: %s)", e.Method, e.Path, e.Status, e.Body)
 }
 
 // NewClient constructs a Client from explicit parameters.
@@ -93,7 +110,13 @@ func (c *Client) do(req *http.Request, dest any) error {
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		payload, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("directus %s %s failed: %s (body: %s)", req.Method, req.URL.Path, resp.Status, string(payload))
+		return &RequestError{
+			Method:     req.Method,
+			Path:       req.URL.Path,
+			StatusCode: resp.StatusCode,
+			Status:     resp.Status,
+			Body:       string(payload),
+		}
 	}
 
 	if dest == nil {
@@ -206,6 +229,29 @@ type VersionOptions struct {
 	Promote bool
 }
 
+// VersionPromotionError captures non-fatal promotion failures.
+type VersionPromotionError struct {
+	Collection string
+	ItemID     string
+	VersionID  string
+	VersionKey string
+	Err        error
+}
+
+func (e *VersionPromotionError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return fmt.Sprintf("promote %s item %s version %s: %v", e.Collection, e.ItemID, e.VersionKey, e.Err)
+}
+
+func (e *VersionPromotionError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 // CreateItemVersion mirrors the TypeScript version management flow.
 func (c *Client) CreateItemVersion(ctx context.Context, collection string, key string, item map[string]any, opts VersionOptions) error {
 	versionKey := opts.Key
@@ -258,7 +304,7 @@ func (c *Client) CreateItemVersion(ctx context.Context, collection string, key s
 			if err := c.do(updateReq, nil); err != nil {
 				return err
 			}
-			return c.saveVersion(ctx, versionID, item, opts.Promote)
+			return c.saveVersion(ctx, collection, key, versionID, versionKey, item, opts.Promote)
 		}
 		return err
 	}
@@ -267,7 +313,7 @@ func (c *Client) CreateItemVersion(ctx context.Context, collection string, key s
 	if versionID == "" {
 		return errors.New("directus version response missing id")
 	}
-	return c.saveVersion(ctx, versionID, item, opts.Promote)
+	return c.saveVersion(ctx, collection, key, versionID, versionKey, item, opts.Promote)
 }
 
 func (c *Client) findExistingVersion(ctx context.Context, collection, item, versionKey string) (string, error) {
@@ -294,7 +340,7 @@ func (c *Client) findExistingVersion(ctx context.Context, collection, item, vers
 	return id, nil
 }
 
-func (c *Client) saveVersion(ctx context.Context, versionID string, item map[string]any, promote bool) error {
+func (c *Client) saveVersion(ctx context.Context, collection, itemID, versionID, versionKey string, item map[string]any, promote bool) error {
 	saveReq, err := c.buildRequest(ctx, http.MethodPost, []string{"versions", versionID, "save"}, nil, map[string]any{
 		"data": item,
 	})
@@ -303,7 +349,7 @@ func (c *Client) saveVersion(ctx context.Context, versionID string, item map[str
 	}
 
 	var saveResp struct {
-		Data map[string]any `json:"data"`
+		Data any            `json:"data"`
 		Meta map[string]any `json:"meta"`
 	}
 	if err := c.do(saveReq, &saveResp); err != nil {
@@ -314,7 +360,7 @@ func (c *Client) saveVersion(ctx context.Context, versionID string, item map[str
 		return nil
 	}
 
-	mainHash := extractMainHash(saveResp.Data, saveResp.Meta)
+	mainHash := extractMainHashFromAny(saveResp.Data, saveResp.Meta)
 	if mainHash == "" {
 		hash, err := c.fetchVersionHash(ctx, versionID)
 		if err != nil {
@@ -331,7 +377,16 @@ func (c *Client) saveVersion(ctx context.Context, versionID string, item map[str
 	if err != nil {
 		return err
 	}
-	return c.do(promoteReq, nil)
+	if err := c.do(promoteReq, nil); err != nil {
+		return &VersionPromotionError{
+			Collection: collection,
+			ItemID:     itemID,
+			VersionID:  versionID,
+			VersionKey: versionKey,
+			Err:        err,
+		}
+	}
+	return nil
 }
 
 // CreateOneWithVersion creates a record and persists a version snapshot.
@@ -349,7 +404,10 @@ func (c *Client) CreateOneWithVersion(ctx context.Context, collection string, it
 		Key:     version,
 		Promote: promote,
 	}); err != nil {
-		return nil, err
+		if shouldIgnoreVersionError(err) {
+			return created, nil
+		}
+		return created, err
 	}
 	return created, nil
 }
@@ -369,7 +427,10 @@ func (c *Client) UpdateOneWithVersion(ctx context.Context, collection string, ke
 		Key:     version,
 		Promote: promote,
 	}); err != nil {
-		return nil, err
+		if shouldIgnoreVersionError(err) {
+			return updated, nil
+		}
+		return updated, err
 	}
 	return updated, nil
 }
@@ -393,6 +454,23 @@ func normalizeID(value any) string {
 	default:
 		return strings.TrimSpace(fmt.Sprint(v))
 	}
+}
+
+func shouldIgnoreVersionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var promoteErr *VersionPromotionError
+	if errors.As(err, &promoteErr) {
+		return true
+	}
+	var requestErr *RequestError
+	if errors.As(err, &requestErr) {
+		if strings.Contains(requestErr.Path, "/versions") {
+			return true
+		}
+	}
+	return false
 }
 
 func encodeQueryParams(query map[string]any) url.Values {
@@ -449,6 +527,16 @@ func encodeFilter(values url.Values, prefix string, data any) {
 			encodeFilter(values, next, child)
 		}
 	default:
+		if slice := reflect.ValueOf(data); slice.IsValid() {
+			switch slice.Kind() {
+			case reflect.Slice, reflect.Array:
+				for i := 0; i < slice.Len(); i++ {
+					next := fmt.Sprintf("%s[%d]", prefix, i)
+					encodeFilter(values, next, slice.Index(i).Interface())
+				}
+				return
+			}
+		}
 		values.Add(prefix, fmt.Sprint(v))
 	}
 }
@@ -502,6 +590,34 @@ func extractMainHash(data map[string]any, meta map[string]any) string {
 	return ""
 }
 
+func extractMainHashFromAny(data any, meta map[string]any) string {
+	switch v := data.(type) {
+	case map[string]any:
+		if hash := extractMainHash(v, meta); hash != "" {
+			return hash
+		}
+	case []any:
+		for _, entry := range v {
+			record, ok := entry.(map[string]any)
+			if !ok {
+				continue
+			}
+			if hash := extractMainHash(record, meta); hash != "" {
+				return hash
+			}
+		}
+	case nil:
+		// ignore
+	default:
+		if record, ok := v.(map[string]any); ok {
+			if hash := extractMainHash(record, meta); hash != "" {
+				return hash
+			}
+		}
+	}
+	return extractMainHash(nil, meta)
+}
+
 func (c *Client) fetchVersionHash(ctx context.Context, versionID string) (string, error) {
 	req, err := c.buildRequest(ctx, http.MethodGet, []string{"versions", versionID, "compare"}, nil, nil)
 	if err != nil {
@@ -520,12 +636,12 @@ func (c *Client) fetchVersionHash(ctx context.Context, versionID string) (string
 			if !ok {
 				continue
 			}
-			if hash := extractMainHash(entry, nil); hash != "" {
+			if hash := extractMainHashFromAny(entry, nil); hash != "" {
 				return hash, nil
 			}
 		}
 	case map[string]any:
-		if hash := extractMainHash(data, nil); hash != "" {
+		if hash := extractMainHashFromAny(data, nil); hash != "" {
 			return hash, nil
 		}
 	}

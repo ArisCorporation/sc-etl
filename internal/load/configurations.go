@@ -126,7 +126,22 @@ func (b *builder) syncShipConfigurationHardpoints(configs []resolvedConfiguratio
 	}
 	existingMap := map[string]map[string]any{}
 	for _, row := range existingRows {
-		key := configurationHPKey(toString(row["configuration"]), toString(row["hardpoint"]), toString(row["item"]))
+		configID := extractID(row["configuration"])
+		if configID == "" {
+			configID = extractID(row["configuration.id"])
+		}
+		hardpointID := extractID(row["hardpoint"])
+		if hardpointID == "" {
+			hardpointID = extractID(row["hardpoint.id"])
+		}
+		itemID := extractID(row["item"])
+		if itemID == "" {
+			itemID = extractID(row["item.id"])
+		}
+		if configID == "" || hardpointID == "" || itemID == "" {
+			continue
+		}
+		key := configurationHPKey(configID, hardpointID, itemID)
 		existingMap[key] = row
 	}
 

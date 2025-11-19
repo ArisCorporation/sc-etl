@@ -19,8 +19,11 @@ type variantSnapshot struct {
 }
 
 type variantState struct {
-	ID       string
-	Snapshot variantSnapshot
+	ID        string
+	Snapshot  variantSnapshot
+	Composite string
+	RefKeys   []string
+	Matched   bool
 }
 
 func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, stats map[string]map[string]any, shipIDs map[string]string, versionName string, promote bool) (map[string]string, error) {
@@ -29,17 +32,13 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 	if err != nil {
 		return nil, err
 	}
-	existingByExternal := map[string]variantState{}
+	byComposite := map[string]*variantState{}
+	byRef := map[string]*variantState{}
+	byID := map[string]*variantState{}
 	for _, row := range rows {
-		snapshot := makeVariantSnapshotFromRow(row)
-		external := extractPrimaryExternalID(snapshot.ExternalRefs)
-		if external == "" {
-			continue
-		}
-		existingByExternal[external] = variantState{
-			ID:       toString(row["id"]),
-			Snapshot: snapshot,
-		}
+		state := makeVariantState(toString(row["id"]), makeVariantSnapshotFromRow(row))
+		attachVariantState(state, byComposite, byRef)
+		byID[state.ID] = state
 	}
 
 	variantIDs := map[string]string{}
@@ -98,26 +97,55 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 			"status":        "published",
 		}
 
-		if existing, ok := existingByExternal[external]; ok {
-			diffPayload := diff.Compute(variantSnapshotMap(existing.Snapshot), variantSnapshotMap(snapshot), []string{"ship", "name", "variant_code", "external_refs", "stats", "thumbnail", "release_patch"})
+		composite := variantCompositeKey(snapshot.ShipID, snapshot.VariantCode)
+		state := lookupVariantState(composite, snapshot.ExternalRefs, byComposite, byRef)
+
+		if state != nil {
+			diffPayload := diff.Compute(variantSnapshotMap(state.Snapshot), variantSnapshotMap(snapshot), []string{"ship", "name", "variant_code", "external_refs", "stats", "thumbnail", "release_patch"})
 			if diffPayload != nil {
-				if _, err := b.client.UpdateOneWithVersion(b.ctx, b.collections.ShipVariants, existing.ID, payload, versionName, promote); err != nil {
-					return nil, fmt.Errorf("update ship variant %s: %w", external, err)
+				detachVariantState(state, byComposite, byRef)
+				if _, err := b.client.UpdateOneWithVersion(b.ctx, b.collections.ShipVariants, state.ID, payload, versionName, promote); err != nil {
+					if versionErr := handleVersionError(err); versionErr != nil {
+						return nil, fmt.Errorf("update ship variant %s: %w", external, versionErr)
+					}
 				}
-				existing.Snapshot = snapshot
-				existingByExternal[external] = existing
+				state.Snapshot = snapshot
+				state.Composite = variantCompositeKey(snapshot.ShipID, snapshot.VariantCode)
+				state.RefKeys = buildRefKeys(snapshot.ExternalRefs)
+				attachVariantState(state, byComposite, byRef)
 			}
-			variantIDs[external] = existing.ID
+			state.Matched = true
+			variantIDs[external] = state.ID
 			continue
 		}
 
 		created, err := b.client.CreateOneWithVersion(b.ctx, b.collections.ShipVariants, payload, versionName, promote)
 		if err != nil {
-			return nil, fmt.Errorf("create ship variant %s: %w", external, err)
+			if versionErr := handleVersionError(err); versionErr != nil {
+				return nil, fmt.Errorf("create ship variant %s: %w", external, versionErr)
+			}
 		}
 		id := toString(created["id"])
 		variantIDs[external] = id
-		existingByExternal[external] = variantState{ID: id, Snapshot: snapshot}
+		newState := makeVariantState(id, snapshot)
+		newState.Matched = true
+		attachVariantState(newState, byComposite, byRef)
+		byID[newState.ID] = newState
+	}
+
+	var toDelete []string
+	for id, state := range byID {
+		if !state.Matched {
+			toDelete = append(toDelete, id)
+		}
+	}
+
+	if len(toDelete) > 0 {
+		for _, batch := range chunkStrings(toDelete, 100) {
+			if err := b.client.DeleteMany(b.ctx, b.collections.ShipVariants, batch); err != nil {
+				return nil, fmt.Errorf("delete ship variants: %w", err)
+			}
+		}
 	}
 
 	return variantIDs, nil
@@ -155,4 +183,57 @@ func variantSnapshotMap(snapshot variantSnapshot) map[string]any {
 		"thumbnail":     nullableString(snapshot.Thumbnail),
 		"release_patch": nullableString(snapshot.ReleasePatch),
 	}
+}
+
+func makeVariantState(id string, snapshot variantSnapshot) *variantState {
+	return &variantState{
+		ID:        id,
+		Snapshot:  snapshot,
+		Composite: variantCompositeKey(snapshot.ShipID, snapshot.VariantCode),
+		RefKeys:   buildRefKeys(snapshot.ExternalRefs),
+		Matched:   false,
+	}
+}
+
+func attachVariantState(state *variantState, byComposite map[string]*variantState, byRef map[string]*variantState) {
+	if state == nil {
+		return
+	}
+	if state.Composite != "" {
+		byComposite[state.Composite] = state
+	}
+	for _, key := range state.RefKeys {
+		byRef[key] = state
+	}
+}
+
+func detachVariantState(state *variantState, byComposite map[string]*variantState, byRef map[string]*variantState) {
+	if state == nil {
+		return
+	}
+	if state.Composite != "" {
+		if current, ok := byComposite[state.Composite]; ok && current == state {
+			delete(byComposite, state.Composite)
+		}
+	}
+	for _, key := range state.RefKeys {
+		if current, ok := byRef[key]; ok && current == state {
+			delete(byRef, key)
+		}
+	}
+}
+
+func lookupVariantState(composite string, refs []model.NormalizedExternalReference, byComposite map[string]*variantState, byRef map[string]*variantState) *variantState {
+	if composite != "" {
+		if state, ok := byComposite[composite]; ok {
+			return state
+		}
+	}
+	keys := buildRefKeys(refs)
+	for _, key := range keys {
+		if state, ok := byRef[key]; ok {
+			return state
+		}
+	}
+	return nil
 }

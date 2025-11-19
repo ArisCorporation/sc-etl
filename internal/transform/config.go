@@ -9,28 +9,34 @@ import (
 // Config holds runtime options for the transformation pipeline.
 type Config struct {
 	AllowedItemTypes       map[string]struct{}
+	AllowedHardpointTypes  map[string]struct{}
 	HardpointsAsCollection bool
 }
 
 // LoadConfig initialises Config using environment variables with optional overrides.
 func LoadConfig(overrides *Config) Config {
-	allowed := parseAllowedItemTypes(os.Getenv("ALLOWED_ITEM_TYPES"))
+	allowedItems := parseAllowedTokens(os.Getenv("ALLOWED_ITEM_TYPES"))
+	allowedHardpoints := parseAllowedTokens(os.Getenv("ALLOWED_HARDPOINT_TYPES"))
 	hardpointsAsCollection := parseBoolean(os.Getenv("HARDPOINTS_AS_COLLECTION"), true)
 
 	if overrides != nil {
 		if overrides.AllowedItemTypes != nil {
-			allowed = overrides.AllowedItemTypes
+			allowedItems = overrides.AllowedItemTypes
+		}
+		if overrides.AllowedHardpointTypes != nil {
+			allowedHardpoints = overrides.AllowedHardpointTypes
 		}
 		hardpointsAsCollection = overrides.HardpointsAsCollection
 	}
 
 	return Config{
-		AllowedItemTypes:       allowed,
+		AllowedItemTypes:       allowedItems,
+		AllowedHardpointTypes:  allowedHardpoints,
 		HardpointsAsCollection: hardpointsAsCollection,
 	}
 }
 
-func parseAllowedItemTypes(raw string) map[string]struct{} {
+func parseAllowedTokens(raw string) map[string]struct{} {
 	result := make(map[string]struct{})
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

@@ -131,6 +131,28 @@ func getArray(entry map[string]any, key string) []any {
 	return nil
 }
 
+func getMap(entry map[string]any, keys ...string) map[string]any {
+	for _, key := range keys {
+		if value, ok := entry[key]; ok {
+			if nested, ok := value.(map[string]any); ok {
+				return nested
+			}
+		}
+	}
+	return nil
+}
+
+func getRawValue(entry map[string]any, keys ...string) (any, bool) {
+	for _, key := range keys {
+		if value, ok := entry[key]; ok {
+			if value != nil {
+				return value, true
+			}
+		}
+	}
+	return nil, false
+}
+
 func toMapArray(input []any) []map[string]any {
 	result := []map[string]any{}
 	for _, entry := range input {

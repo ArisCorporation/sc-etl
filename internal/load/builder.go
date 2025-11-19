@@ -2,6 +2,7 @@ package load
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,11 +15,16 @@ import (
 )
 
 type builder struct {
-	ctx         context.Context
-	client      *directus.Client
-	result      *transform.Result
-	collections collections
-	build       buildRecord
+	ctx                          context.Context
+	client                       *directus.Client
+	result                       *transform.Result
+	collections                  collections
+	build                        buildRecord
+	defaultCompanyCategory       *string
+	allowedItemTypeList          []string
+	allowedItemTypes             map[string]struct{}
+	allowedHardpointCategoryList []string
+	allowedHardpointCategories   map[string]struct{}
 
 	statsCompanies  int
 	statsShips      int
@@ -27,12 +33,31 @@ type builder struct {
 	statsHardpoints int
 }
 
-func newBuilder(ctx context.Context, client *directus.Client, result *transform.Result) *builder {
+func newBuilder(ctx context.Context, client *directus.Client, result *transform.Result, opts Options) *builder {
+	var defaultCategory *string
+	if candidate := strings.TrimSpace(opts.DefaultCompanyCategory); candidate != "" {
+		defaultCategory = &candidate
+	}
+	itemTypes := opts.AllowedItemTypes
+	if len(itemTypes) == 0 {
+		itemTypes = defaultAllowedItemTypes
+	}
+	itemList, itemSet := normalizeAllowlist(itemTypes)
+	hardpointCategories := opts.AllowedHardpointCategories
+	if len(hardpointCategories) == 0 {
+		hardpointCategories = defaultAllowedHardpointCategories
+	}
+	hpList, hpSet := normalizeAllowlist(hardpointCategories)
 	return &builder{
-		ctx:         ctx,
-		client:      client,
-		result:      result,
-		collections: loadCollections(),
+		ctx:                          ctx,
+		client:                       client,
+		result:                       result,
+		collections:                  loadCollections(),
+		defaultCompanyCategory:       defaultCategory,
+		allowedItemTypeList:          itemList,
+		allowedItemTypes:             itemSet,
+		allowedHardpointCategoryList: hpList,
+		allowedHardpointCategories:   hpSet,
 	}
 }
 
@@ -107,11 +132,17 @@ func (b *builder) sync() error {
 	promoteVersions := b.result.V2.Channel == model.ChannelLive
 
 	// Split stats and hardpoints
-	statsByVariant, hardpoints := splitVariantStats(b.result.V2)
+	statsByVariant, splitHardpoints := splitVariantStats(b.result.V2)
 
-	legacyHardpoints := hardpoints
+	var legacyHardpoints []model.NormalizedHardpointV2
+	var skippedHardpoints int
 	if len(b.result.V2.Hardpoints) > 0 {
-		legacyHardpoints = b.result.V2.Hardpoints
+		legacyHardpoints, skippedHardpoints = b.filterHardpointsList(b.result.V2.Hardpoints)
+	} else {
+		legacyHardpoints, skippedHardpoints = b.filterHardpointsList(splitHardpoints)
+	}
+	if skippedHardpoints > 0 {
+		utils.Logger().Info("Skipping hardpoints outside allowlist", "skipped", skippedHardpoints)
 	}
 
 	installedByHardpoint := buildInstalledItemMap(b.result.Legacy.InstalledItems)
@@ -129,7 +160,7 @@ func (b *builder) sync() error {
 
 	resolveCompanyID := b.companyResolverFunc(companyIDs, companyResolver)
 
-	shipIDs, err := b.syncShips(resolveCompanyID, b.result.V2.Ships, versionName, promoteVersions)
+	shipIDs, err := b.syncShips(shipGrouping, resolveCompanyID, b.result.V2.Ships, versionName, promoteVersions)
 	if err != nil {
 		return err
 	}
@@ -206,6 +237,69 @@ func (b *builder) companyResolverFunc(seed map[string]string, resolver *utils.Co
 		cache[cacheKey] = &id
 		return id, nil
 	}
+}
+
+func handleVersionError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var promoteErr *directus.VersionPromotionError
+	if errors.As(err, &promoteErr) {
+		message := promoteErr.Err.Error()
+		if message == "" {
+			message = promoteErr.Error()
+		}
+		utils.Logger().Warn("Directus version promotion failed; continuing without promotion",
+			"collection", promoteErr.Collection,
+			"item", promoteErr.ItemID,
+			"version", promoteErr.VersionKey,
+			"error", message)
+		return nil
+	}
+	var requestErr *directus.RequestError
+	if errors.As(err, &requestErr) {
+		if strings.Contains(requestErr.Path, "/versions") {
+			utils.Logger().Warn("Directus version request failed; continuing without version snapshot",
+				"path", requestErr.Path,
+				"status", requestErr.Status,
+				"body", truncateString(requestErr.Body, 512))
+			return nil
+		}
+	}
+	return err
+}
+
+func truncateString(value string, limit int) string {
+	if limit <= 0 || len(value) <= limit {
+		return value
+	}
+	if limit <= 3 {
+		return value[:limit]
+	}
+	return value[:limit-3] + "..."
+}
+
+func (b *builder) filterHardpointsList(hardpoints []model.NormalizedHardpointV2) ([]model.NormalizedHardpointV2, int) {
+	if len(b.allowedHardpointCategories) == 0 {
+		copied := make([]model.NormalizedHardpointV2, len(hardpoints))
+		copy(copied, hardpoints)
+		return copied, 0
+	}
+	filtered := make([]model.NormalizedHardpointV2, 0, len(hardpoints))
+	skipped := 0
+	for _, hp := range hardpoints {
+		categoryUpper := strings.ToUpper(strings.TrimSpace(hp.Category))
+		if categoryUpper == "" {
+			skipped++
+			continue
+		}
+		if _, ok := b.allowedHardpointCategories[categoryUpper]; !ok {
+			skipped++
+			continue
+		}
+		filtered = append(filtered, hp)
+	}
+	return filtered, skipped
 }
 
 func buildInstalledItemMap(installed []model.NormalizedInstalledItem) map[string]installedItemAggregate {

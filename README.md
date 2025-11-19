@@ -28,6 +28,7 @@ Die CLI liest Flags (siehe `--help`) und Umgebungsvariablen. Ein Beispiel `.env`
 ```env
 DIRECTUS_URL=https://directus.example.com
 DIRECTUS_TOKEN=STATIC_TOKEN
+DEFAULT_COMPANY_CATEGORY=company_categories_id
 DATA_ROOT=./data
 P4K_PATH=./Data.p4k
 UNP4K_ENABLED=1
@@ -46,6 +47,8 @@ Wichtige Flags/ENV-Variablen:
 - `--channel` / `CHANNEL` (LIVE/PTU/EPTU)
 - `--version` / `GAME_VERSION`
 - `--data-root` / `DATA_ROOT`
+- `--load-enabled` / `LOAD_ENABLED`
+- `--default-company-category` / `DEFAULT_COMPANY_CATEGORY`
 - `--p4k` / `P4K_PATH`
 - `--unp4k-enabled`, `--unforge-enabled`, `--scd-enabled`
 

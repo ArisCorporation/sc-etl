@@ -6,6 +6,7 @@ import (
 
 	"github.com/ArisCorporation/sc-goetl/internal/diff"
 	"github.com/ArisCorporation/sc-goetl/internal/model"
+	"github.com/ArisCorporation/sc-goetl/internal/utils"
 )
 
 type itemSnapshot struct {
@@ -27,7 +28,8 @@ type itemState struct {
 
 func (b *builder) syncItems(resolveCompanyID func(string) (string, error), items []model.NormalizedItemV2, versionName string, promote bool) (map[string]string, error) {
 	fields := []string{"id", "external_id", "name", "type", "subtype", "size", "grade", "class", "manufacturer", "manufacturer.id", "stats", "external_refs"}
-	rows, err := fetchAllRows(b.ctx, b.client, b.collections.Items, fields, nil)
+	filter := buildEqualityFilter("type", b.allowedItemTypeList)
+	rows, err := fetchAllRows(b.ctx, b.client, b.collections.Items, fields, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -42,10 +44,20 @@ func (b *builder) syncItems(resolveCompanyID func(string) (string, error), items
 
 	itemIDs := map[string]string{}
 
+	totalItems := len(items)
+	skippedItems := 0
+
 	for _, item := range items {
 		external := strings.ToUpper(strings.TrimSpace(item.ExternalID))
 		if external == "" {
 			continue
+		}
+		normalizedType := strings.ToUpper(strings.TrimSpace(item.Type))
+		if len(b.allowedItemTypes) > 0 {
+			if _, ok := b.allowedItemTypes[normalizedType]; !ok {
+				skippedItems++
+				continue
+			}
 		}
 		manufacturerID := ""
 		if item.CompanyCode != nil {
@@ -64,7 +76,7 @@ func (b *builder) syncItems(resolveCompanyID func(string) (string, error), items
 		}
 		snapshot := itemSnapshot{
 			Name:           item.Name,
-			Type:           strings.ToUpper(strings.TrimSpace(item.Type)),
+			Type:           normalizedType,
 			Subtype:        strings.TrimSpace(stringFromPtr(item.Subtype)),
 			Size:           item.Size,
 			Grade:          strings.TrimSpace(stringFromPtr(item.Grade)),
@@ -92,7 +104,9 @@ func (b *builder) syncItems(resolveCompanyID func(string) (string, error), items
 			diffPayload := diff.Compute(itemSnapshotMap(existing.Snapshot), itemSnapshotMap(snapshot), []string{"name", "type", "subtype", "size", "grade", "class", "manufacturer", "stats", "external_refs"})
 			if diffPayload != nil {
 				if _, err := b.client.UpdateOneWithVersion(b.ctx, b.collections.Items, existing.ID, payload, versionName, promote); err != nil {
-					return nil, fmt.Errorf("update item %s: %w", external, err)
+					if versionErr := handleVersionError(err); versionErr != nil {
+						return nil, fmt.Errorf("update item %s: %w", external, versionErr)
+					}
 				}
 				existing.Snapshot = snapshot
 				states[external] = existing
@@ -103,11 +117,17 @@ func (b *builder) syncItems(resolveCompanyID func(string) (string, error), items
 
 		created, err := b.client.CreateOneWithVersion(b.ctx, b.collections.Items, payload, versionName, promote)
 		if err != nil {
-			return nil, fmt.Errorf("create item %s: %w", external, err)
+			if versionErr := handleVersionError(err); versionErr != nil {
+				return nil, fmt.Errorf("create item %s: %w", external, versionErr)
+			}
 		}
 		id := toString(created["id"])
 		itemIDs[external] = id
 		states[external] = itemState{ID: id, Snapshot: snapshot}
+	}
+
+	if totalItems > 0 && len(b.allowedItemTypes) > 0 {
+		utils.Logger().Info("Syncing items", "total", len(itemIDs), "skipped_non_allowlisted", skippedItems)
 	}
 
 	return itemIDs, nil
