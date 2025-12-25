@@ -837,7 +837,7 @@
       "manufacturer": "ORIG",
       "name": "890 Jump",
       "variants": {
-        "BASE": "ORIG_890Jump"
+        "890 Jump": "ORIG_890Jump"
       }
     },
     "ORIG_M50": {

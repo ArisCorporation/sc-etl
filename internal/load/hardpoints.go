@@ -10,7 +10,6 @@ import (
 )
 
 type hardpointSnapshot struct {
-	ShipVariant  string
 	Code         string
 	Category     string
 	Position     string
@@ -21,7 +20,6 @@ type hardpointSnapshot struct {
 	Meta         map[string]any
 	ExternalID   string
 	Parent       string
-	Item         string
 	ItemQuantity *int
 	IsLeaf       bool
 }
@@ -31,11 +29,11 @@ type hardpointState struct {
 	Snapshot hardpointSnapshot
 }
 
-func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, variantIDs map[string]string, installed map[string]installedItemAggregate, itemIDs map[string]string, versionName string, promote bool) error {
+func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, installed map[string]installedItemAggregate, versionName string, promote bool) error {
 	if len(hardpoints) == 0 {
 		return nil
 	}
-	fields := []string{"id", "external_id", "ship_variant", "ship_variant.id", "code", "category", "position", "size", "gimballed", "powered", "path", "meta", "parent", "parent.id", "item", "item.id", "item_quantity", "is_leaf"}
+	fields := []string{"id", "external_id", "code", "category", "position", "size", "gimballed", "powered", "path", "meta", "parent", "parent.id", "item_quantity", "is_leaf"}
 	filter := buildEqualityFilter("category", b.allowedHardpointCategoryList)
 	rows, err := fetchAllRows(b.ctx, b.client, b.collections.Hardpoints, fields, filter)
 	if err != nil {
@@ -84,29 +82,18 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 				continue
 			}
 		}
-		variantID := variantIDs[strings.ToUpper(strings.TrimSpace(hardpoint.ShipVariantExternal))]
-		if variantID == "" {
-			return fmt.Errorf("missing variant mapping for hardpoint %s", hardpoint.ShipVariantExternal)
-		}
 		parentExternal, pathValue, codeValue := deriveHardpointPath(external, hardpoint.Code)
 		parentID := ""
 		if parentExternal != "" {
 			parentID = parentLookup[parentExternal]
 		}
 		installedEntry := installed[external]
-		itemID := ""
 		quantity := installedEntry.Quantity
-		if installedEntry.ItemExternalID != "" {
-			itemID = itemIDs[strings.ToUpper(installedEntry.ItemExternalID)]
-			if itemID == "" {
-				quantity = 0
-			}
-		}
 		var quantityPtr *int
-		if itemID != "" && quantity > 0 {
+		if quantity > 0 {
 			quantityPtr = &quantity
 		}
-		hasItem := itemID != ""
+		hasItem := installedEntry.ItemExternalID != ""
 		meta := map[string]any{}
 		if hardpoint.Seats != nil {
 			meta["seats"] = *hardpoint.Seats
@@ -129,7 +116,6 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 			position = *hardpoint.Position
 		}
 		snapshot := hardpointSnapshot{
-			ShipVariant:  variantID,
 			Code:         codeValue,
 			Category:     strings.TrimSpace(hardpoint.Category),
 			Position:     strings.TrimSpace(position),
@@ -140,13 +126,11 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 			Meta:         metaPayload,
 			ExternalID:   external,
 			Parent:       parentID,
-			Item:         itemID,
 			ItemQuantity: quantityPtr,
 			IsLeaf:       hasItem,
 		}
 		payload := map[string]any{
 			"external_id":   snapshot.ExternalID,
-			"ship_variant":  snapshot.ShipVariant,
 			"code":          snapshot.Code,
 			"category":      snapshot.Category,
 			"position":      nullableString(snapshot.Position),
@@ -156,13 +140,12 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 			"path":          nullableString(snapshot.Path),
 			"meta":          snapshot.Meta,
 			"parent":        nullableString(snapshot.Parent),
-			"item":          nullableString(snapshot.Item),
 			"item_quantity": snapshot.ItemQuantity,
 			"is_leaf":       snapshot.IsLeaf,
 			"status":        "published",
 		}
 		if existing, ok := states[external]; ok {
-			diffPayload := diff.Compute(hardpointSnapshotMap(existing.Snapshot), hardpointSnapshotMap(snapshot), []string{"ship_variant", "code", "category", "position", "size", "gimballed", "powered", "path", "meta", "parent", "item", "item_quantity", "is_leaf"})
+			diffPayload := diff.Compute(hardpointSnapshotMap(existing.Snapshot), hardpointSnapshotMap(snapshot), []string{"code", "category", "position", "size", "gimballed", "powered", "path", "meta", "parent", "item_quantity", "is_leaf"})
 			if diffPayload != nil {
 				if _, err := b.client.UpdateOneWithVersion(b.ctx, b.collections.Hardpoints, existing.ID, payload, versionName, promote); err != nil {
 					if versionErr := handleVersionError(err); versionErr != nil {
@@ -171,6 +154,12 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 				}
 				existing.Snapshot = snapshot
 				states[external] = existing
+			} else {
+				if err := b.ensureVersionSnapshot(b.collections.Hardpoints, existing.ID, payload, versionName, promote); err != nil {
+					if versionErr := handleVersionError(err); versionErr != nil {
+						return fmt.Errorf("version hardpoint %s: %w", external, versionErr)
+					}
+				}
 			}
 			parentLookup[external] = existing.ID
 			continue
@@ -189,7 +178,6 @@ func (b *builder) syncHardpoints(hardpoints []model.NormalizedHardpointV2, varia
 }
 
 func makeHardpointSnapshotFromRow(row map[string]any) hardpointSnapshot {
-	shipVariant := extractID(row["ship_variant"])
 	code := normalizeString(row["code"])
 	category := normalizeString(row["category"])
 	position := normalizeString(row["position"])
@@ -202,7 +190,6 @@ func makeHardpointSnapshotFromRow(row map[string]any) hardpointSnapshot {
 		meta = payload
 	}
 	parent := extractID(row["parent"])
-	item := extractID(row["item"])
 	quantity, _ := extractInt(row["item_quantity"])
 	isLeafPtr, _ := extractBool(row["is_leaf"])
 	isLeaf := false
@@ -210,7 +197,6 @@ func makeHardpointSnapshotFromRow(row map[string]any) hardpointSnapshot {
 		isLeaf = *isLeafPtr
 	}
 	return hardpointSnapshot{
-		ShipVariant:  shipVariant,
 		Code:         code,
 		Category:     category,
 		Position:     position,
@@ -221,7 +207,6 @@ func makeHardpointSnapshotFromRow(row map[string]any) hardpointSnapshot {
 		Meta:         meta,
 		ExternalID:   strings.ToUpper(normalizeString(row["external_id"])),
 		Parent:       parent,
-		Item:         item,
 		ItemQuantity: quantity,
 		IsLeaf:       isLeaf,
 	}
@@ -229,7 +214,6 @@ func makeHardpointSnapshotFromRow(row map[string]any) hardpointSnapshot {
 
 func hardpointSnapshotMap(snapshot hardpointSnapshot) map[string]any {
 	return map[string]any{
-		"ship_variant":  snapshot.ShipVariant,
 		"code":          snapshot.Code,
 		"category":      snapshot.Category,
 		"position":      nullableString(snapshot.Position),
@@ -239,7 +223,6 @@ func hardpointSnapshotMap(snapshot hardpointSnapshot) map[string]any {
 		"path":          nullableString(snapshot.Path),
 		"meta":          snapshot.Meta,
 		"parent":        nullableString(snapshot.Parent),
-		"item":          nullableString(snapshot.Item),
 		"item_quantity": snapshot.ItemQuantity,
 		"is_leaf":       snapshot.IsLeaf,
 	}

@@ -10,6 +10,18 @@ import (
 	"strings"
 )
 
+const (
+	defaultDataRoot        = "./data"
+	defaultP4KPath         = "./data/p4k/Data.p4k"
+	defaultScDataDumperBin = "php"
+)
+
+var defaultScDataDumperArgs = []string{
+	"-d", "memory_limit=2G",
+	"cli.php", "load:data",
+	"--scUnpackedFormat", "{{input}}", "{{output}}",
+}
+
 // Config collects runtime configuration for the ETL pipeline.
 type Config struct {
 	Channel                string
@@ -17,6 +29,7 @@ type Config struct {
 	DataRoot               string
 	P4KPath                string
 	LoadEnabled            bool
+	PromoteVersions        bool
 	DirectusURL            string
 	DirectusToken          string
 	DefaultCompanyCategory string
@@ -60,10 +73,10 @@ func Parse(args []string) (*Config, error) {
 	defaultVersion := envString("GAME_VERSION", "0.0.0")
 	fs.StringVar(&cfg.Version, "version", defaultVersion, "Target game version")
 
-	defaultRoot := envString("DATA_ROOT", "./data")
+	defaultRoot := envString("DATA_ROOT", defaultDataRoot)
 	fs.StringVar(&cfg.DataRoot, "data-root", defaultRoot, "Root directory for ETL assets")
 
-	fs.StringVar(&cfg.P4KPath, "p4k", envStringList([]string{"P4K_PATH", "DATA_P4K"}, ""), "Path to Data.p4k archive")
+	fs.StringVar(&cfg.P4KPath, "p4k", envStringList([]string{"P4K_PATH", "DATA_P4K"}, defaultP4KPath), "Path to Data.p4k archive")
 
 	cfg.LoadEnabled = envBool("LOAD_ENABLED", true)
 	fs.BoolVar(&cfg.LoadEnabled, "load-enabled", cfg.LoadEnabled, "Enable Directus load step")
@@ -74,13 +87,16 @@ func Parse(args []string) (*Config, error) {
 	cfg.DirectusToken = envString("DIRECTUS_TOKEN", "")
 	fs.StringVar(&cfg.DirectusToken, "directus-token", cfg.DirectusToken, "Directus static token")
 
+	cfg.PromoteVersions = envBool("PROMOTE_VERSIONS", true)
+	fs.BoolVar(&cfg.PromoteVersions, "promote-versions", cfg.PromoteVersions, "Promote Directus content versions (disable to keep main unchanged)")
+
 	cfg.DefaultCompanyCategory = envString("DEFAULT_COMPANY_CATEGORY", "")
 	fs.StringVar(&cfg.DefaultCompanyCategory, "default-company-category", cfg.DefaultCompanyCategory, "Fallback Directus company category id when none can be detected")
 
 	cfg.ForceUnp4k = envBool("FORCE_UNP4K", false)
 	fs.BoolVar(&cfg.ForceUnp4k, "force-unp4k", cfg.ForceUnp4k, "Force re-extraction with unp4k")
 
-	cfg.Unp4kEnable = envBool("UNP4K_ENABLED", envStringList([]string{"P4K_PATH", "DATA_P4K"}, "") != "")
+	cfg.Unp4kEnable = envBool("UNP4K_ENABLED", cfg.P4KPath != "")
 	fs.BoolVar(&cfg.Unp4kEnable, "unp4k-enabled", cfg.Unp4kEnable, "Enable unp4k extraction step")
 
 	cfg.Unp4k.Bin = envString("UNP4K_BIN", "bins/unp4k/unp4k.exe")
@@ -92,7 +108,7 @@ func Parse(args []string) (*Config, error) {
 	}
 	fs.Var(&unp4kArgs, "unp4k-arg", "Additional argument for unp4k (repeatable)")
 
-	cfg.UnforgeEnable = envBool("UNFORGE_ENABLED", false)
+	cfg.UnforgeEnable = envBool("UNFORGE_ENABLED", cfg.Unp4kEnable)
 	fs.BoolVar(&cfg.UnforgeEnable, "unforge-enabled", cfg.UnforgeEnable, "Enable unforge conversion step")
 
 	cfg.Unforge.Bin = envString("UNFORGE_BIN", "bins/unp4k/unforge.exe")
@@ -104,10 +120,10 @@ func Parse(args []string) (*Config, error) {
 	}
 	fs.Var(&unforgeArgs, "unforge-arg", "Additional argument for unforge (repeatable)")
 
-	cfg.ScdEnable = envBool("SC_DATA_DUMPER_ENABLED", false)
+	cfg.ScdEnable = envBool("SC_DATA_DUMPER_ENABLED", true)
 	fs.BoolVar(&cfg.ScdEnable, "scd-enabled", cfg.ScdEnable, "Enable StarCitizenDataDumper integration")
 
-	cfg.ScDataDump.Bin = envString("SC_DATA_DUMPER_BIN", "")
+	cfg.ScDataDump.Bin = envString("SC_DATA_DUMPER_BIN", defaultScDataDumperBin)
 	fs.StringVar(&cfg.ScDataDump.Bin, "scd-bin", cfg.ScDataDump.Bin, "scDataDumper executable wrapper path")
 
 	var scdArgs stringSlice
@@ -133,6 +149,9 @@ func Parse(args []string) (*Config, error) {
 	cfg.Unp4k.Args = append(cfg.Unp4k.Args, unp4kArgs...)
 	cfg.Unforge.Args = append(cfg.Unforge.Args, unforgeArgs...)
 	cfg.ScDataDump.Args = append(cfg.ScDataDump.Args, scdArgs...)
+	if len(cfg.ScDataDump.Args) == 0 {
+		cfg.ScDataDump.Args = append(cfg.ScDataDump.Args, defaultScDataDumperArgs...)
+	}
 
 	cfg.DirectusURL = strings.TrimSpace(cfg.DirectusURL)
 	cfg.DirectusToken = strings.TrimSpace(cfg.DirectusToken)

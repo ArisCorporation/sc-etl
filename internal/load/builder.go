@@ -20,6 +20,7 @@ type builder struct {
 	result                       *transform.Result
 	collections                  collections
 	build                        buildRecord
+	promoteEnabled               bool
 	defaultCompanyCategory       *string
 	allowedItemTypeList          []string
 	allowedItemTypes             map[string]struct{}
@@ -38,6 +39,10 @@ func newBuilder(ctx context.Context, client *directus.Client, result *transform.
 	if candidate := strings.TrimSpace(opts.DefaultCompanyCategory); candidate != "" {
 		defaultCategory = &candidate
 	}
+	promoteEnabled := true
+	if opts.PromoteVersions != nil {
+		promoteEnabled = *opts.PromoteVersions
+	}
 	itemTypes := opts.AllowedItemTypes
 	if len(itemTypes) == 0 {
 		itemTypes = defaultAllowedItemTypes
@@ -53,6 +58,7 @@ func newBuilder(ctx context.Context, client *directus.Client, result *transform.
 		client:                       client,
 		result:                       result,
 		collections:                  loadCollections(),
+		promoteEnabled:               promoteEnabled,
 		defaultCompanyCategory:       defaultCategory,
 		allowedItemTypeList:          itemList,
 		allowedItemTypes:             itemSet,
@@ -74,12 +80,12 @@ func (b *builder) stats() LoadStatistics {
 func loadCollections() collections {
 	return collections{
 		Companies:           getenv("SC_COMPANY_COLLECTION", "companies"),
-		Ships:               getenv("SC_SHIP_COLLECTION", "ships"),
+		Ships:               getenv("SC_SHIP_COLLECTION", "ship_hulls"),
 		ShipVariants:        getenv("SC_SHIP_VARIANT_COLLECTION", "ship_variants"),
 		Items:               getenv("SC_ITEM_COLLECTION", "items"),
-		Hardpoints:          getenv("SC_HARDPOINT_COLLECTION", "hardpoints"),
-		ShipConfigurations:  getenv("SC_SHIP_CONFIGURATION_COLLECTION", "ship_configurations"),
-		ShipConfigurationHP: getenv("SC_SHIP_CONFIGURATION_HP_COLLECTION", "ship_configuration_hardpoints"),
+		Hardpoints:          getenv("SC_HARDPOINT_COLLECTION", "ship_hardpoints"),
+		ShipConfigurations:  getenv("SC_SHIP_CONFIGURATION_COLLECTION", "ship_variant_configurations"),
+		ShipConfigurationHP: getenv("SC_SHIP_CONFIGURATION_HP_COLLECTION", "ship_variant_configuration_hardpoints"),
 	}
 }
 
@@ -129,7 +135,7 @@ func (b *builder) ensureBuild() error {
 func (b *builder) sync() error {
 	shipGrouping := transform.LoadShipGrouping()
 	versionName := fmt.Sprintf("V%s-%s", b.result.V2.Version, b.result.V2.Channel)
-	promoteVersions := b.result.V2.Channel == model.ChannelLive
+	promoteVersions := b.promoteEnabled && b.result.V2.Channel == model.ChannelLive
 
 	// Split stats and hardpoints
 	statsByVariant, splitHardpoints := splitVariantStats(b.result.V2)
@@ -160,13 +166,13 @@ func (b *builder) sync() error {
 
 	resolveCompanyID := b.companyResolverFunc(companyIDs, companyResolver)
 
-	shipIDs, err := b.syncShips(shipGrouping, resolveCompanyID, b.result.V2.Ships, versionName, promoteVersions)
+	hullIDs, err := b.syncShips(shipGrouping, resolveCompanyID, b.result.V2.Ships, versionName, promoteVersions)
 	if err != nil {
 		return err
 	}
-	b.statsShips = len(shipIDs)
+	b.statsShips = len(hullIDs)
 
-	variantIDs, err := b.syncShipVariants(b.result.V2.ShipVariants, statsByVariant, shipIDs, versionName, promoteVersions)
+	variantIDs, err := b.syncShipVariants(b.result.V2.ShipVariants, statsByVariant, hullIDs, versionName, promoteVersions)
 	if err != nil {
 		return err
 	}
@@ -178,7 +184,7 @@ func (b *builder) sync() error {
 	}
 	b.statsItems = len(itemIDs)
 
-	if err := b.syncHardpoints(legacyHardpoints, variantIDs, installedByHardpoint, itemIDs, versionName, promoteVersions); err != nil {
+	if err := b.syncHardpoints(legacyHardpoints, installedByHardpoint, versionName, promoteVersions); err != nil {
 		return err
 	}
 	b.statsHardpoints = len(legacyHardpoints)
@@ -249,21 +255,21 @@ func handleVersionError(err error) error {
 		if message == "" {
 			message = promoteErr.Error()
 		}
-		utils.Logger().Warn("Directus version promotion failed; continuing without promotion",
+		utils.Logger().Error("Directus version promotion failed",
 			"collection", promoteErr.Collection,
 			"item", promoteErr.ItemID,
 			"version", promoteErr.VersionKey,
 			"error", message)
-		return nil
+		return err
 	}
 	var requestErr *directus.RequestError
 	if errors.As(err, &requestErr) {
 		if strings.Contains(requestErr.Path, "/versions") {
-			utils.Logger().Warn("Directus version request failed; continuing without version snapshot",
+			utils.Logger().Error("Directus version request failed",
 				"path", requestErr.Path,
 				"status", requestErr.Status,
 				"body", truncateString(requestErr.Body, 512))
-			return nil
+			return err
 		}
 	}
 	return err
@@ -317,6 +323,14 @@ func buildInstalledItemMap(installed []model.NormalizedInstalledItem) map[string
 		result[key] = entry
 	}
 	return result
+}
+
+func (b *builder) ensureVersionSnapshot(collection, id string, payload map[string]any, versionName string, promote bool) error {
+	return b.client.CreateItemVersion(b.ctx, collection, id, payload, directus.VersionOptions{
+		Name:    versionName,
+		Key:     versionName,
+		Promote: promote,
+	})
 }
 
 type installedItemAggregate struct {

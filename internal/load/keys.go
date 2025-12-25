@@ -12,14 +12,14 @@ func shipCompositeKey(manufacturerID *string, name string) string {
 	return strings.ToUpper(*manufacturerID) + ":" + strings.ToLower(strings.TrimSpace(name))
 }
 
-func variantCompositeKey(shipID string, variantCode string) string {
-	shipID = strings.TrimSpace(strings.ToUpper(shipID))
-	if shipID == "" {
+func variantCompositeKey(hullID string, variantCode string) string {
+	hullID = strings.TrimSpace(strings.ToUpper(hullID))
+	if hullID == "" {
 		return ""
 	}
 	code := strings.TrimSpace(strings.ToUpper(variantCode))
 	if code == "" {
 		code = "BASE"
 	}
-	return shipID + ":" + code
+	return hullID + ":" + code
 }

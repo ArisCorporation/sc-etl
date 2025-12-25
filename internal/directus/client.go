@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,6 +24,28 @@ type Client struct {
 	BaseURL    *url.URL
 	Token      string
 	HTTPClient *http.Client
+}
+
+var (
+	loggerOnce sync.Once
+	logger     *slog.Logger
+)
+
+const (
+	versionRetryAttempts = 3
+	versionRetryDelay    = 500 * time.Millisecond
+)
+
+func logInfo(msg string, args ...any) {
+	loggerOnce.Do(func() {
+		handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		})
+		logger = slog.New(handler)
+	})
+	if logger != nil {
+		logger.Info(msg, args...)
+	}
 }
 
 // RequestError captures HTTP failures when communicating with Directus.
@@ -124,6 +148,32 @@ func (c *Client) do(req *http.Request, dest any) error {
 	}
 
 	return json.NewDecoder(resp.Body).Decode(dest)
+}
+
+func isTransientRequestError(err error) bool {
+	var reqErr *RequestError
+	if errors.As(err, &reqErr) {
+		if reqErr.StatusCode == 0 {
+			return true
+		}
+		if reqErr.StatusCode >= http.StatusInternalServerError {
+			return true
+		}
+	}
+	return false
+}
+
+func requestStatus(err error) string {
+	var reqErr *RequestError
+	if errors.As(err, &reqErr) {
+		if reqErr.Status != "" {
+			return reqErr.Status
+		}
+		if reqErr.StatusCode != 0 {
+			return strconv.Itoa(reqErr.StatusCode)
+		}
+	}
+	return err.Error()
 }
 
 // ReadByQuery mirrors the SDK readItems() helper.
@@ -272,15 +322,32 @@ func (c *Client) CreateItemVersion(ctx context.Context, collection string, key s
 		payload["status"] = opts.Status
 	}
 
-	req, err := c.buildRequest(ctx, http.MethodPost, []string{"versions"}, nil, payload)
-	if err != nil {
-		return err
-	}
-
 	var response struct {
 		Data map[string]any `json:"data"`
 	}
-	err = c.do(req, &response)
+	var err error
+	for attempt := 1; attempt <= versionRetryAttempts; attempt++ {
+		response = struct {
+			Data map[string]any `json:"data"`
+		}{}
+		req, buildErr := c.buildRequest(ctx, http.MethodPost, []string{"versions"}, nil, payload)
+		if buildErr != nil {
+			return buildErr
+		}
+		err = c.do(req, &response)
+		if err == nil {
+			break
+		}
+		if !isTransientRequestError(err) || attempt == versionRetryAttempts {
+			break
+		}
+		time.Sleep(time.Duration(attempt) * versionRetryDelay)
+		logInfo("Retrying Directus version create",
+			"collection", collection,
+			"item", key,
+			"attempt", attempt+1,
+			"status", requestStatus(err))
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			versionID, lookupErr := c.findExistingVersion(ctx, collection, key, versionKey)
@@ -304,7 +371,22 @@ func (c *Client) CreateItemVersion(ctx context.Context, collection string, key s
 			if err := c.do(updateReq, nil); err != nil {
 				return err
 			}
-			return c.saveVersion(ctx, collection, key, versionID, versionKey, item, opts.Promote)
+			hash, hashErr := c.fetchVersionHash(ctx, versionID)
+			if hashErr != nil {
+				return hashErr
+			}
+			logInfo("Directus version already exists",
+				"collection", collection,
+				"item", key,
+				"version_key", versionKey,
+				"version_id", versionID,
+				"has_snapshot", hash != "")
+			if hash == "" {
+				// Existing version without snapshot (e.g. manually pre-created) still needs an initial save.
+				return c.saveVersion(ctx, collection, key, versionID, versionKey, item, opts.Promote)
+			}
+			// Version already has a snapshot; leave it untouched to keep historic releases isolated.
+			return nil
 		}
 		return err
 	}
@@ -341,52 +423,99 @@ func (c *Client) findExistingVersion(ctx context.Context, collection, item, vers
 }
 
 func (c *Client) saveVersion(ctx context.Context, collection, itemID, versionID, versionKey string, item map[string]any, promote bool) error {
-	saveReq, err := c.buildRequest(ctx, http.MethodPost, []string{"versions", versionID, "save"}, nil, map[string]any{
-		"data": item,
-	})
-	if err != nil {
-		return err
-	}
-
 	var saveResp struct {
 		Data any            `json:"data"`
 		Meta map[string]any `json:"meta"`
 	}
-	if err := c.do(saveReq, &saveResp); err != nil {
-		return err
+	var err error
+	for attempt := 1; attempt <= versionRetryAttempts; attempt++ {
+		saveResp = struct {
+			Data any            `json:"data"`
+			Meta map[string]any `json:"meta"`
+		}{}
+		saveReq, buildErr := c.buildRequest(ctx, http.MethodPost, []string{"versions", versionID, "save"}, nil, map[string]any{
+			"data": item,
+		})
+		if buildErr != nil {
+			return buildErr
+		}
+		err = c.do(saveReq, &saveResp)
+		if err == nil {
+			break
+		}
+		if !isTransientRequestError(err) || attempt == versionRetryAttempts {
+			break
+		}
+		time.Sleep(time.Duration(attempt) * versionRetryDelay)
+		logInfo("Retrying Directus version save",
+			"version_id", versionID,
+			"attempt", attempt+1,
+			"status", requestStatus(err))
 	}
 
-	if !promote {
-		return nil
-	}
-
-	mainHash := extractMainHashFromAny(saveResp.Data, saveResp.Meta)
-	if mainHash == "" {
-		hash, err := c.fetchVersionHash(ctx, versionID)
-		if err != nil {
+	mainHash := ""
+	if err != nil {
+		hash, hashErr := c.fetchVersionHash(ctx, versionID)
+		if hashErr != nil {
+			return err
+		}
+		if hash == "" {
 			return err
 		}
 		mainHash = hash
-	}
-	if mainHash == "" {
-		return nil
-	}
-	promoteReq, err := c.buildRequest(ctx, http.MethodPost, []string{"versions", versionID, "promote"}, nil, map[string]any{
-		"mainHash": mainHash,
-	})
-	if err != nil {
-		return err
-	}
-	if err := c.do(promoteReq, nil); err != nil {
-		return &VersionPromotionError{
-			Collection: collection,
-			ItemID:     itemID,
-			VersionID:  versionID,
-			VersionKey: versionKey,
-			Err:        err,
+		logInfo("Directus version save error but snapshot exists",
+			"version_id", versionID,
+			"status", requestStatus(err))
+	} else {
+		mainHash = extractMainHashFromAny(saveResp.Data, saveResp.Meta)
+		if mainHash == "" {
+			hash, hashErr := c.fetchVersionHash(ctx, versionID)
+			if hashErr != nil {
+				return hashErr
+			}
+			mainHash = hash
 		}
 	}
-	return nil
+
+	if !promote || mainHash == "" {
+		return nil
+	}
+
+	return c.promoteVersion(ctx, collection, itemID, versionID, versionKey, mainHash)
+}
+
+func (c *Client) promoteVersion(ctx context.Context, collection, itemID, versionID, versionKey, mainHash string) error {
+	var err error
+	for attempt := 1; attempt <= versionRetryAttempts; attempt++ {
+		promoteReq, buildErr := c.buildRequest(ctx, http.MethodPost, []string{"versions", versionID, "promote"}, nil, map[string]any{
+			"mainHash": mainHash,
+		})
+		if buildErr != nil {
+			return buildErr
+		}
+		err = c.do(promoteReq, nil)
+		if err == nil {
+			return nil
+		}
+		if !isTransientRequestError(err) || attempt == versionRetryAttempts {
+			break
+		}
+		time.Sleep(time.Duration(attempt) * versionRetryDelay)
+		logInfo("Retrying Directus version promote",
+			"version_id", versionID,
+			"attempt", attempt+1,
+			"status", requestStatus(err))
+	}
+	if err == nil {
+		return nil
+	}
+	return &VersionPromotionError{
+		Collection: collection,
+		ItemID:     itemID,
+		VersionID:  versionID,
+		VersionKey: versionKey,
+		Err:        err,
+	}
 }
 
 // CreateOneWithVersion creates a record and persists a version snapshot.
@@ -404,9 +533,6 @@ func (c *Client) CreateOneWithVersion(ctx context.Context, collection string, it
 		Key:     version,
 		Promote: promote,
 	}); err != nil {
-		if shouldIgnoreVersionError(err) {
-			return created, nil
-		}
 		return created, err
 	}
 	return created, nil
@@ -427,9 +553,6 @@ func (c *Client) UpdateOneWithVersion(ctx context.Context, collection string, ke
 		Key:     version,
 		Promote: promote,
 	}); err != nil {
-		if shouldIgnoreVersionError(err) {
-			return updated, nil
-		}
 		return updated, err
 	}
 	return updated, nil
@@ -454,23 +577,6 @@ func normalizeID(value any) string {
 	default:
 		return strings.TrimSpace(fmt.Sprint(v))
 	}
-}
-
-func shouldIgnoreVersionError(err error) bool {
-	if err == nil {
-		return false
-	}
-	var promoteErr *VersionPromotionError
-	if errors.As(err, &promoteErr) {
-		return true
-	}
-	var requestErr *RequestError
-	if errors.As(err, &requestErr) {
-		if strings.Contains(requestErr.Path, "/versions") {
-			return true
-		}
-	}
-	return false
 }
 
 func encodeQueryParams(query map[string]any) url.Values {

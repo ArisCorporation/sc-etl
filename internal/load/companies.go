@@ -44,7 +44,7 @@ func (b *builder) syncCompanies(companies []model.NormalizedCompanyV2) (map[stri
 		}
 		defaultCategory = b.defaultCompanyCategory
 	} else if defaultCategory == nil {
-		utils.Logger().Warn("No default company category detected; skipping creation of missing companies.")
+		utils.Logger().Warn("No default company category detected; normalized companies will not get a fallback category.")
 	}
 
 	idMap := map[string]string{}
@@ -62,30 +62,19 @@ func (b *builder) syncCompanies(companies []model.NormalizedCompanyV2) (map[stri
 			"external_refs": state.ExternalRefs,
 			"status":        state.Status,
 		}
-		if ok {
-			diffPayload := diff.Compute(snapshotToMap(existing.Snapshot), snapshotToMap(state), []string{"name", "category", "external_refs", "status"})
-			if diffPayload != nil {
-				if _, err := b.client.UpdateOne(b.ctx, b.collections.Companies, existing.ID, payload); err != nil {
-					return nil, fmt.Errorf("update company %s: %w", state.Code, err)
-				}
-				existing.Snapshot = state
-				byCode[state.Code] = existing
+		if !ok {
+			utils.Logger().Warn("Skipping normalized company without existing Directus entry", "code", state.Code)
+			continue
+		}
+		diffPayload := diff.Compute(snapshotToMap(existing.Snapshot), snapshotToMap(state), []string{"name", "category", "external_refs", "status"})
+		if diffPayload != nil {
+			if _, err := b.client.UpdateOne(b.ctx, b.collections.Companies, existing.ID, payload); err != nil {
+				return nil, fmt.Errorf("update company %s: %w", state.Code, err)
 			}
-			idMap[state.Code] = existing.ID
-			continue
+			existing.Snapshot = state
+			byCode[state.Code] = existing
 		}
-		if state.Category == nil || strings.TrimSpace(*state.Category) == "" {
-			utils.Logger().Warn("Missing default company category; cannot create", "code", state.Code)
-			continue
-		}
-		created, err := b.client.CreateOne(b.ctx, b.collections.Companies, payload)
-		if err != nil {
-			return nil, fmt.Errorf("create company %s: %w", state.Code, err)
-		}
-		id := toString(created["id"])
-		idMap[state.Code] = id
-		byCode[state.Code] = companyState{ID: id, Snapshot: state}
-		utils.Logger().Info("Created Directus company", "code", state.Code, "id", id)
+		idMap[state.Code] = existing.ID
 	}
 
 	return idMap, nil

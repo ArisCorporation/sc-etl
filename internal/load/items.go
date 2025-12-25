@@ -110,6 +110,12 @@ func (b *builder) syncItems(resolveCompanyID func(string) (string, error), items
 				}
 				existing.Snapshot = snapshot
 				states[external] = existing
+			} else {
+				if err := b.ensureVersionSnapshot(b.collections.Items, existing.ID, payload, versionName, promote); err != nil {
+					if versionErr := handleVersionError(err); versionErr != nil {
+						return nil, fmt.Errorf("version item %s: %w", external, versionErr)
+					}
+				}
 			}
 			itemIDs[external] = existing.ID
 			continue

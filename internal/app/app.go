@@ -58,6 +58,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 			DefaultCompanyCategory:     cfg.DefaultCompanyCategory,
 			AllowedItemTypes:           selectAllowedList(transformResult.Config.AllowedItemTypes),
 			AllowedHardpointCategories: selectAllowedList(transformResult.Config.AllowedHardpointTypes),
+			PromoteVersions:            &cfg.PromoteVersions,
 		})
 		if err != nil {
 			return fmt.Errorf("load phase failed: %w", err)

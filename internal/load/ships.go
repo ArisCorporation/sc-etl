@@ -96,6 +96,12 @@ func (b *builder) syncShips(grouping *transform.ShipGrouping, resolveCompanyID f
 				state.Composite = shipCompositeKeyValue(snapshot.Manufacturer, snapshot.Name)
 				state.RefKeys = buildRefKeys(snapshot.ExternalRefs)
 				attachShipState(state, byComposite, byRef)
+			} else {
+				if err := b.ensureVersionSnapshot(b.collections.Ships, state.ID, payload, versionName, promote); err != nil {
+					if versionErr := handleVersionError(err); versionErr != nil {
+						return nil, fmt.Errorf("version ship %s: %w", external, versionErr)
+					}
+				}
 			}
 			state.Matched = true
 			shipIDByExternal[external] = state.ID

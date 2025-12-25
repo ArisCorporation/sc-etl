@@ -9,7 +9,7 @@ import (
 )
 
 type variantSnapshot struct {
-	ShipID       string
+	HullID       string
 	Name         string
 	VariantCode  string
 	ExternalRefs []model.NormalizedExternalReference
@@ -26,8 +26,8 @@ type variantState struct {
 	Matched   bool
 }
 
-func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, stats map[string]map[string]any, shipIDs map[string]string, versionName string, promote bool) (map[string]string, error) {
-	fields := []string{"id", "ship", "ship.id", "name", "variant_code", "external_refs", "stats", "thumbnail", "release_patch"}
+func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, stats map[string]map[string]any, hullIDs map[string]string, versionName string, promote bool) (map[string]string, error) {
+	fields := []string{"id", "hull", "hull.id", "name", "variant_code", "external_refs", "stats", "thumbnail", "release_patch"}
 	rows, err := fetchAllRows(b.ctx, b.client, b.collections.ShipVariants, fields, nil)
 	if err != nil {
 		return nil, err
@@ -48,9 +48,9 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 		if external == "" {
 			continue
 		}
-		shipID := shipIDs[strings.ToUpper(strings.TrimSpace(variant.ShipExternal))]
-		if shipID == "" {
-			return nil, fmt.Errorf("missing ship mapping for variant %s", variant.ExternalID)
+		hullID := hullIDs[strings.ToUpper(strings.TrimSpace(variant.ShipExternal))]
+		if hullID == "" {
+			return nil, fmt.Errorf("missing hull mapping for variant %s", variant.ExternalID)
 		}
 		statsPayload := stats[variant.ExternalID]
 		if statsPayload == nil {
@@ -77,7 +77,7 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 			name = variant.ExternalID
 		}
 		snapshot := variantSnapshot{
-			ShipID:       shipID,
+			HullID:       hullID,
 			Name:         name,
 			VariantCode:  variantCode,
 			ExternalRefs: ensurePrimaryExternalRef(variant.ExternalRefs, external),
@@ -87,7 +87,7 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 		}
 
 		payload := map[string]any{
-			"ship":          snapshot.ShipID,
+			"hull":          snapshot.HullID,
 			"name":          snapshot.Name,
 			"variant_code":  nullableString(snapshot.VariantCode),
 			"external_refs": snapshot.ExternalRefs,
@@ -97,11 +97,11 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 			"status":        "published",
 		}
 
-		composite := variantCompositeKey(snapshot.ShipID, snapshot.VariantCode)
+		composite := variantCompositeKey(snapshot.HullID, snapshot.VariantCode)
 		state := lookupVariantState(composite, snapshot.ExternalRefs, byComposite, byRef)
 
 		if state != nil {
-			diffPayload := diff.Compute(variantSnapshotMap(state.Snapshot), variantSnapshotMap(snapshot), []string{"ship", "name", "variant_code", "external_refs", "stats", "thumbnail", "release_patch"})
+			diffPayload := diff.Compute(variantSnapshotMap(state.Snapshot), variantSnapshotMap(snapshot), []string{"hull", "name", "variant_code", "external_refs", "stats", "thumbnail", "release_patch"})
 			if diffPayload != nil {
 				detachVariantState(state, byComposite, byRef)
 				if _, err := b.client.UpdateOneWithVersion(b.ctx, b.collections.ShipVariants, state.ID, payload, versionName, promote); err != nil {
@@ -110,9 +110,15 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 					}
 				}
 				state.Snapshot = snapshot
-				state.Composite = variantCompositeKey(snapshot.ShipID, snapshot.VariantCode)
+				state.Composite = variantCompositeKey(snapshot.HullID, snapshot.VariantCode)
 				state.RefKeys = buildRefKeys(snapshot.ExternalRefs)
 				attachVariantState(state, byComposite, byRef)
+			} else {
+				if err := b.ensureVersionSnapshot(b.collections.ShipVariants, state.ID, payload, versionName, promote); err != nil {
+					if versionErr := handleVersionError(err); versionErr != nil {
+						return nil, fmt.Errorf("version ship variant %s: %w", external, versionErr)
+					}
+				}
 			}
 			state.Matched = true
 			variantIDs[external] = state.ID
@@ -152,7 +158,7 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 }
 
 func makeVariantSnapshotFromRow(row map[string]any) variantSnapshot {
-	shipID := extractID(row["ship"])
+	hullID := extractID(row["hull"])
 	name := normalizeString(row["name"])
 	variantCode := normalizeString(row["variant_code"])
 	refs := normalizeExternalRefsInput(row["external_refs"])
@@ -163,7 +169,7 @@ func makeVariantSnapshotFromRow(row map[string]any) variantSnapshot {
 	thumbnail := normalizeString(row["thumbnail"])
 	release := normalizeString(row["release_patch"])
 	return variantSnapshot{
-		ShipID:       shipID,
+		HullID:       hullID,
 		Name:         name,
 		VariantCode:  variantCode,
 		ExternalRefs: refs,
@@ -175,7 +181,7 @@ func makeVariantSnapshotFromRow(row map[string]any) variantSnapshot {
 
 func variantSnapshotMap(snapshot variantSnapshot) map[string]any {
 	return map[string]any{
-		"ship":          snapshot.ShipID,
+		"hull":          snapshot.HullID,
 		"name":          snapshot.Name,
 		"variant_code":  nullableString(snapshot.VariantCode),
 		"external_refs": snapshot.ExternalRefs,
@@ -189,7 +195,7 @@ func makeVariantState(id string, snapshot variantSnapshot) *variantState {
 	return &variantState{
 		ID:        id,
 		Snapshot:  snapshot,
-		Composite: variantCompositeKey(snapshot.ShipID, snapshot.VariantCode),
+		Composite: variantCompositeKey(snapshot.HullID, snapshot.VariantCode),
 		RefKeys:   buildRefKeys(snapshot.ExternalRefs),
 		Matched:   false,
 	}

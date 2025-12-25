@@ -23,24 +23,27 @@ go run ./cmd/scgoetl --channel=LIVE --version=4.3.1
 
 ## Konfiguration
 
-Die CLI liest Flags (siehe `--help`) und Umgebungsvariablen. Ein Beispiel `.env` (oder direkte Shell-Exports):
+Die CLI liest Flags (siehe `--help`) und Umgebungsvariablen. Eine minimale `.env` reicht aus, um nur Directus-Zugangsdaten (für den Load-Step) und z. B. den Wine-Pfad zu setzen:
 
 ```env
 DIRECTUS_URL=https://directus.example.com
 DIRECTUS_TOKEN=STATIC_TOKEN
-DEFAULT_COMPANY_CATEGORY=company_categories_id
-DATA_ROOT=./data
-P4K_PATH=./Data.p4k
-UNP4K_ENABLED=1
-UNP4K_BIN=./bins/unp4k/unp4k.exe
-UNP4K_ARGS="{{p4k}} *.xml *.ini --output {{output}}"
-UNFORGE_ENABLED=1
-UNFORGE_BIN=./bins/unp4k/unforge.exe
-UNFORGE_ARGS={{input}}
-SC_DATA_DUMPER_ENABLED=0
-SC_DATA_DUMPER_BIN=php
 WINE_BIN=wine
+#DATA_ROOT=./custom-data         # optional override
+#P4K_PATH=./data/p4k/Data.p4k    # optional override
 ```
+
+Standardwerte (gelten ohne Overrides):
+
+- `CHANNEL=LIVE`, `GAME_VERSION=0.0.0` (werden meist über CLI-Flags gesetzt)
+- `DATA_ROOT=./data`
+- `P4K_PATH=./data/p4k/Data.p4k`
+- `UNP4K_ENABLED=1`, `UNP4K_BIN=./bins/unp4k/unp4k.exe`
+- `UNFORGE_ENABLED=1`, `UNFORGE_BIN=./bins/unp4k/unforge.exe`
+- `SC_DATA_DUMPER_ENABLED=1`, `SC_DATA_DUMPER_BIN=php`, `SC_DATA_DUMPER_ARGS="-d memory_limit=2G cli.php load:data --scUnpackedFormat {{input}} {{output}}"`
+- `WINE_BIN=wine` (auf macOS/Linux; auf Windows leer)
+
+Damit läuft die komplette Extract-Pipeline automatisch, solange `./data/p4k/Data.p4k` existiert. Direktes Laden nach Directus benötigt weiterhin gültige `DIRECTUS_URL`/`DIRECTUS_TOKEN` Werte (oder das Flag `--load-enabled=false`, falls nur Extract/Transform nötig ist).
 
 Wichtige Flags/ENV-Variablen:
 
@@ -52,11 +55,13 @@ Wichtige Flags/ENV-Variablen:
 - `--p4k` / `P4K_PATH`
 - `--unp4k-enabled`, `--unforge-enabled`, `--scd-enabled`
 
+Neue Firmen (Manufacturers) werden vom Loader nicht mehr automatisch in Directus angelegt. Alle Hersteller-Codes müssen daher bereits im Directus-Modul existieren, damit sie per Code gematcht und aktualisiert werden können. Fehlt ein Eintrag, wird der Datensatz übersprungen und z. B. Items erhalten keinen Herstellerbezug.
+
 ## Ablauf
 
 1. **Extract** – optionaler Aufruf von `unp4k`, `unforge`, `scdatadumper`. Die Rohdaten landen unter `data/raw/<CHANNEL>/<VERSION>/`.
 2. **Transform** – Normalisierte JSONs und V2-Bundles werden in `data/normalized/<CHANNEL>/<VERSION>/` geschrieben und gegen `schemas/*.json` validiert.
-3. **Load** – Der Loader vergleicht die Daten mit Directus (`companies`, `ships`, `ship_variants`, `items`, `hardpoints`, `item_stats`, `ship_stats`, `locales`) und führt versionierte Upserts aus. Builds werden auf `ingested` gesetzt.
+3. **Load** – Der Loader vergleicht die Daten mit Directus (`companies`, `ship_hulls`, `ship_variants`, `items`, `ship_hardpoints`, `item_stats`, `ship_stats`, `locales`, `ship_variant_configurations`, `ship_variant_configuration_hardpoints`) und führt versionierte Upserts aus. Builds werden auf `ingested` gesetzt.
 
 Alle Schritte loggen JSON über `internal/utils/log` (stderr).
 

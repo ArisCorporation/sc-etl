@@ -1,0 +1,286 @@
+"time":"2025-12-14T14:21:58.251982641+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"B38CC54E-E02E-439D-B714-548954B7B461"}
+{"time":"2025-12-14T14:21:58.25221519+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"22712725-9FFB-4FBE-84DD-282BDF23CBB4"}
+{"time":"2025-12-14T14:21:58.252228024+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"C08CEDFA-FAFC-4EA6-9737-59FAEB4B1510"}
+{"time":"2025-12-14T14:21:58.252245457+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"A2620922-A83F-47BF-A3AF-21A81A09A69E"}
+{"time":"2025-12-14T14:21:58.252258041+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"4D10317A-83E6-4FA8-A3D9-259BC3DB85DB"}
+{"time":"2025-12-14T14:21:58.252285843+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"0A273C88-62FA-4FEA-898B-55E7E95E1893"}
+{"time":"2025-12-14T14:21:58.252290702+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"14DC4406-18A6-4056-9CA3-061DA42F24E9"}
+{"time":"2025-12-14T14:21:58.252305731+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"D912BD40-348E-464C-8141-A143990234F9"}
+{"time":"2025-12-14T14:21:58.25233169+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"7A37DC17-4984-4418-A70D-04BF22FEA031"}
+{"time":"2025-12-14T14:21:58.252418143+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"9AF78FD3-64E3-482C-99DA-BFE2AD1485CF"}
+{"time":"2025-12-14T14:21:58.252478918+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"95FDBFE1-ECC0-4CBE-8B0C-DE36FA6377FB"}
+{"time":"2025-12-14T14:21:58.252506961+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"C178A712-98FF-4D18-A54F-2ED3C2E98FEA"}
+{"time":"2025-12-14T14:21:58.252512421+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"2EDC20DB-08F3-4DB3-85AA-E4931A6B9BBC"}
+{"time":"2025-12-14T14:21:58.252522269+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"2E47954E-A13B-4BD6-AE2E-F7BAA7BF068B"}
+{"time":"2025-12-14T14:21:58.252527439+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"3CC9AC7F-B9DA-471F-87DC-B63A717A4F47"}
+{"time":"2025-12-14T14:21:58.252531847+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"3953B356-D809-47F7-88CD-E98CEA84F1B3"}
+{"time":"2025-12-14T14:21:58.252537097+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"B717A51F-BF61-4797-925F-A2E14CEE3F8F"}
+{"time":"2025-12-14T14:21:58.252548188+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"05DDE69E-EDF4-432B-947B-0C2D96CA3ADB"}
+{"time":"2025-12-14T14:21:58.252553068+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"8AFB9E60-A7E0-45D1-8C8C-5868E67CFC3E"}
+{"time":"2025-12-14T14:21:58.252564469+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"40F1DCD2-2EC1-441A-A0B1-06B295ED627A"}
+{"time":"2025-12-14T14:21:58.25257013+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"02E461F4-6F2A-449A-BD34-B1DCA7D92D18"}
+{"time":"2025-12-14T14:21:58.252579708+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"3C417520-B18F-4221-A8C8-0E24DDB4E8D3"}
+{"time":"2025-12-14T14:21:58.252584978+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"71C40387-C53F-4D2E-ACBD-393036F3E6C7"}
+{"time":"2025-12-14T14:21:58.252638569+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"FA0B8666-D9EA-4E31-AD7B-FF3916281608"}
+{"time":"2025-12-14T14:21:58.252644149+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"7C334921-1347-44CD-A983-65FED6B86E48"}
+{"time":"2025-12-14T14:21:58.252680037+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"DA44C54E-9B10-4205-926D-C28319D48690"}
+{"time":"2025-12-14T14:21:58.252692561+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"9A48B047-69D8-44D0-84B0-14246524E5D0"}
+{"time":"2025-12-14T14:21:58.252755399+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"2CEE16D2-2219-4720-940B-8BE2EBE6978B"}
+{"time":"2025-12-14T14:21:58.252775918+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"245DA94C-BB7F-4606-97D0-14EBF5762D7E"}
+{"time":"2025-12-14T14:21:58.252818288+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"26CD663D-9C7B-4EF6-8D08-E75EF0C43695"}
+{"time":"2025-12-14T14:21:58.252858474+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"F80E2385-6DFC-4A3B-BDE5-665D8DB20863"}
+{"time":"2025-12-14T14:21:58.252879143+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.252888971+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_EXPEDITION","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.252928807+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"731E0CCF-11D1-4266-AB43-F11635F588A3"}
+{"time":"2025-12-14T14:21:58.253300468+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"7A37DC17-4984-4418-A70D-04BF22FEA031"}
+{"time":"2025-12-14T14:21:58.25331205+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"C08CEDFA-FAFC-4EA6-9737-59FAEB4B1510"}
+{"time":"2025-12-14T14:21:58.253548195+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.253712766+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.25376278+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"11B66D92-5EB2-42B9-BC16-9F6EE8C05561"}
+{"time":"2025-12-14T14:21:58.253776236+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"9A48B047-69D8-44D0-84B0-14246524E5D0"}
+{"time":"2025-12-14T14:21:58.253822533+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"40AE562D-46DB-4364-86DD-E2CDA43A20B7"}
+{"time":"2025-12-14T14:21:58.253833854+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"FC5B0705-02C2-4863-8BF9-B2F8FF8EE75A"}
+{"time":"2025-12-14T14:21:58.253853591+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"64D6DA4B-DECE-4D19-87D5-28D6D3A76CB3"}
+{"time":"2025-12-14T14:21:58.253858461+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_GLADIATOR_BASE","item":"6C7B6B60-E907-41DE-93CC-33B9AC4AF08A"}
+{"time":"2025-12-14T14:21:58.254078396+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"B38AEF26-348E-43D0-AA81-91400690E238"}
+{"time":"2025-12-14T14:21:58.254470926+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.254567248+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"F2C61A4E-06EF-40FC-A817-BA2EFB2CB734"}
+{"time":"2025-12-14T14:21:58.254580663+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.254623464+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"59BD9FAD-8EAE-4F27-9957-8516E2EE4CC6"}
+{"time":"2025-12-14T14:21:58.254668589+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"7BCA490F-431F-4FAE-9CC6-D8AD224DF096"}
+{"time":"2025-12-14T14:21:58.254703996+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"5D92D2EB-A580-433B-9B98-9E905737F087"}
+{"time":"2025-12-14T14:21:58.254725186+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"89D12A4D-4327-45BA-954F-D81D91A6FD13"}
+{"time":"2025-12-14T14:21:58.254755704+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"67BD042B-D61A-441F-AC30-DD63A1F6E8F3"}
+{"time":"2025-12-14T14:21:58.254768598+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"EC694BB2-CAAC-4E6A-9FE9-D53954803358"}
+{"time":"2025-12-14T14:21:58.254795819+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"C075C0D9-6283-413C-ABB0-7CC5D110A208"}
+{"time":"2025-12-14T14:21:58.254816879+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"CBC378F8-C89F-445C-A95A-9C0C956AABDD"}
+{"time":"2025-12-14T14:21:58.254822129+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"16D3AD29-4D92-4682-8D87-AB2E782C728D"}
+{"time":"2025-12-14T14:21:58.254826307+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_PROSPECTOR_BASE","item":"665834D9-F9A9-4C28-860C-63FA6DC93BE9"}
+{"time":"2025-12-14T14:21:58.254858969+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"3230A2DB-EF48-4377-BA10-D72D46F7C161"}
+{"time":"2025-12-14T14:21:58.254895858+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"45EC770A-1607-4B7A-9F6B-8F2EC127AB72"}
+{"time":"2025-12-14T14:21:58.25490719+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"201AFF6C-168B-40A4-890E-0F4C1F75D2F5"}
+{"time":"2025-12-14T14:21:58.254946043+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"8982EB5B-DB6F-4815-9ED7-A26C329A4231"}
+{"time":"2025-12-14T14:21:58.254953497+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"1A4F6556-5AAC-4FED-B06D-A4F5A5CAA0C8"}
+{"time":"2025-12-14T14:21:58.254960009+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"D351D1B2-952C-4BE4-BD51-B5CF2622F45D"}
+{"time":"2025-12-14T14:21:58.254986409+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"511C59C5-5853-4C97-9568-A24E5E97A3A7"}
+{"time":"2025-12-14T14:21:58.254993973+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"10C09C8D-43B7-4717-BA01-2000AA8D0F86"}
+{"time":"2025-12-14T14:21:58.255001978+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"0A731C37-7AD3-4F7E-95BE-06B00D44C508"}
+{"time":"2025-12-14T14:21:58.255010845+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"B38CC54E-E02E-439D-B714-548954B7B461"}
+{"time":"2025-12-14T14:21:58.255142874+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"22712725-9FFB-4FBE-84DD-282BDF23CBB4"}
+{"time":"2025-12-14T14:21:58.255148605+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"C08CEDFA-FAFC-4EA6-9737-59FAEB4B1510"}
+{"time":"2025-12-14T14:21:58.255158183+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"A2620922-A83F-47BF-A3AF-21A81A09A69E"}
+{"time":"2025-12-14T14:21:58.255163443+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"4D10317A-83E6-4FA8-A3D9-259BC3DB85DB"}
+{"time":"2025-12-14T14:21:58.255175746+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"0A273C88-62FA-4FEA-898B-55E7E95E1893"}
+{"time":"2025-12-14T14:21:58.255180736+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"14DC4406-18A6-4056-9CA3-061DA42F24E9"}
+{"time":"2025-12-14T14:21:58.25518811+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"D912BD40-348E-464C-8141-A143990234F9"}
+{"time":"2025-12-14T14:21:58.255197598+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"7A37DC17-4984-4418-A70D-04BF22FEA031"}
+{"time":"2025-12-14T14:21:58.255219349+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"9AF78FD3-64E3-482C-99DA-BFE2AD1485CF"}
+{"time":"2025-12-14T14:21:58.255298217+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"95FDBFE1-ECC0-4CBE-8B0C-DE36FA6377FB"}
+{"time":"2025-12-14T14:21:58.255374461+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"C178A712-98FF-4D18-A54F-2ED3C2E98FEA"}
+{"time":"2025-12-14T14:21:58.255403536+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"2EDC20DB-08F3-4DB3-85AA-E4931A6B9BBC"}
+{"time":"2025-12-14T14:21:58.255444584+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"2E47954E-A13B-4BD6-AE2E-F7BAA7BF068B"}
+{"time":"2025-12-14T14:21:58.255449283+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"3CC9AC7F-B9DA-471F-87DC-B63A717A4F47"}
+{"time":"2025-12-14T14:21:58.255454031+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"3953B356-D809-47F7-88CD-E98CEA84F1B3"}
+{"time":"2025-12-14T14:21:58.255474911+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"B717A51F-BF61-4797-925F-A2E14CEE3F8F"}
+{"time":"2025-12-14T14:21:58.255499628+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"05DDE69E-EDF4-432B-947B-0C2D96CA3ADB"}
+{"time":"2025-12-14T14:21:58.255505218+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"8AFB9E60-A7E0-45D1-8C8C-5868E67CFC3E"}
+{"time":"2025-12-14T14:21:58.25551658+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"40F1DCD2-2EC1-441A-A0B1-06B295ED627A"}
+{"time":"2025-12-14T14:21:58.255522+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"02E461F4-6F2A-449A-BD34-B1DCA7D92D18"}
+{"time":"2025-12-14T14:21:58.255532029+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"3C417520-B18F-4221-A8C8-0E24DDB4E8D3"}
+{"time":"2025-12-14T14:21:58.255537048+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"71C40387-C53F-4D2E-ACBD-393036F3E6C7"}
+{"time":"2025-12-14T14:21:58.255550984+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"FA0B8666-D9EA-4E31-AD7B-FF3916281608"}
+{"time":"2025-12-14T14:21:58.255555273+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"7C334921-1347-44CD-A983-65FED6B86E48"}
+{"time":"2025-12-14T14:21:58.255560052+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"DA44C54E-9B10-4205-926D-C28319D48690"}
+{"time":"2025-12-14T14:21:58.255565171+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"9A48B047-69D8-44D0-84B0-14246524E5D0"}
+{"time":"2025-12-14T14:21:58.255584367+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"2CEE16D2-2219-4720-940B-8BE2EBE6978B"}
+{"time":"2025-12-14T14:21:58.255589227+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"245DA94C-BB7F-4606-97D0-14EBF5762D7E"}
+{"time":"2025-12-14T14:21:58.255627539+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"26CD663D-9C7B-4EF6-8D08-E75EF0C43695"}
+{"time":"2025-12-14T14:21:58.255725905+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"F80E2385-6DFC-4A3B-BDE5-665D8DB20863"}
+{"time":"2025-12-14T14:21:58.255801637+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.255811696+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_CARRACK_BASE","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.255835481+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"9C624BA5-46F1-45FE-A42D-DAA410167652"}
+{"time":"2025-12-14T14:21:58.25585066+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"EAA2FE94-EFC6-4A3B-AD26-D67B037A906F"}
+{"time":"2025-12-14T14:21:58.255855389+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"F90A0530-51F2-4494-8C5F-9D1387A492E6"}
+{"time":"2025-12-14T14:21:58.255864145+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"C08CEDFA-FAFC-4EA6-9737-59FAEB4B1510"}
+{"time":"2025-12-14T14:21:58.255894473+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.255954436+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.255962251+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"E5D93377-43E4-48A2-B2A7-EE920A6D4DE6"}
+{"time":"2025-12-14T14:21:58.255966929+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"2B5AE9EE-A264-47B2-8CDA-17F1DAA39FED"}
+{"time":"2025-12-14T14:21:58.255972279+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"CBB230DE-7FAE-40E1-A3D8-37B5C14150FD"}
+{"time":"2025-12-14T14:21:58.255983831+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"FB084195-0AC2-48F0-923F-0D407182D912"}
+{"time":"2025-12-14T14:21:58.255989592+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"5E14E32D-992B-4D86-B877-F7A1D005765F"}
+{"time":"2025-12-14T14:21:58.255995012+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"9A48B047-69D8-44D0-84B0-14246524E5D0"}
+{"time":"2025-12-14T14:21:58.25600426+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"7A37DC17-4984-4418-A70D-04BF22FEA031"}
+{"time":"2025-12-14T14:21:58.256015501+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"TMBL_CYCLONE_TR","item":"FC9C27A1-3941-4806-96B7-947039F830BF"}
+{"time":"2025-12-14T14:21:58.256045377+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"CE0C6CA2-1CC0-4558-8DD1-F102D802A102"}
+{"time":"2025-12-14T14:21:58.256068371+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"9C063ADC-BC81-4877-86F8-174485ABBCCF"}
+{"time":"2025-12-14T14:21:58.25616335+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"5A4FFBDC-65B6-4C67-9BD0-0F89527F30C0"}
+{"time":"2025-12-14T14:21:58.256202614+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"C08CEDFA-FAFC-4EA6-9737-59FAEB4B1510"}
+{"time":"2025-12-14T14:21:58.256225157+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"7A37DC17-4984-4418-A70D-04BF22FEA031"}
+{"time":"2025-12-14T14:21:58.25640186+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"8999885D-881E-4465-AC2F-2F958AE9A24B"}
+{"time":"2025-12-14T14:21:58.256836811+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.256844515+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.256858111+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"6F57A43E-558B-42E1-9888-4BB096C8B548"}
+{"time":"2025-12-14T14:21:58.256874792+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"9A48B047-69D8-44D0-84B0-14246524E5D0"}
+{"time":"2025-12-14T14:21:58.256880283+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"7F50B8E3-0DB5-4E97-AA8A-EE3346D8594B"}
+{"time":"2025-12-14T14:21:58.256884962+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"C4BEE632-C196-489B-AA41-C030CBC4EC92"}
+{"time":"2025-12-14T14:21:58.256898497+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"5BBCB6B1-E44D-4234-AD58-CBBBF2FF5DA1"}
+{"time":"2025-12-14T14:21:58.256919437+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"71C39962-DC8F-46E9-B9E4-B25DDD5F6774"}
+{"time":"2025-12-14T14:21:58.256927752+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"AEG_VANGUARD_HOPLITE","item":"231E4FB9-8948-438B-9904-4178464D1528"}
+{"time":"2025-12-14T14:21:58.256968379+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"8BCE26E2-F80B-4C9B-AB95-B2E5A6900880"}
+{"time":"2025-12-14T14:21:58.256973859+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"AB99C564-CFF0-4174-8D29-336D5C5A82E6"}
+{"time":"2025-12-14T14:21:58.256980682+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"27F95FAA-F13C-4F16-8503-B6F787537CF1"}
+{"time":"2025-12-14T14:21:58.256998406+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"0FA32F29-E03C-478F-A1D1-ED64A601FABF"}
+{"time":"2025-12-14T14:21:58.257454506+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.257471178+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.257480135+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"ACD22483-21BE-42D8-93D6-69D7B9495CC3"}
+{"time":"2025-12-14T14:21:58.257486086+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"C08CEDFA-FAFC-4EA6-9737-59FAEB4B1510"}
+{"time":"2025-12-14T14:21:58.2575043+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"23D63543-44DF-4CBA-8314-610CA9083416"}
+{"time":"2025-12-14T14:21:58.257509149+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"724AD118-D295-4992-95F9-9B461AE4169D"}
+{"time":"2025-12-14T14:21:58.257522124+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"BC34B4BD-E05F-4A3A-B4BC-9FEA670D2BE6"}
+{"time":"2025-12-14T14:21:58.257555597+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"8A19958A-A95E-4342-99BE-DA1091CE8A26"}
+{"time":"2025-12-14T14:21:58.257560717+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"D29AB303-76FA-4FFC-B5BF-56F956FE35D6"}
+{"time":"2025-12-14T14:21:58.257566157+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"0D839E0E-1778-4899-8D7F-5153238E4FFD"}
+{"time":"2025-12-14T14:21:58.257574833+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"302FC178-6D26-40C0-8B4A-35E324C41ABE"}
+{"time":"2025-12-14T14:21:58.257579753+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"CAEB2320-A228-476C-AEC4-2782CC0976B6"}
+{"time":"2025-12-14T14:21:58.257585133+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"29FD47F9-4098-4317-8DC2-85507B3920CF"}
+{"time":"2025-12-14T14:21:58.257594811+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"3E3C227C-E7B4-45B0-B457-9091106C399D"}
+{"time":"2025-12-14T14:21:58.257607174+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"EA2E7F56-FEED-4B30-8D4A-894A7EEF6FA3"}
+{"time":"2025-12-14T14:21:58.257621321+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"1C4ABB5D-0F1C-4CC1-9988-4E1A81EC1AD0"}
+{"time":"2025-12-14T14:21:58.257626942+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"89D12A4D-4327-45BA-954F-D81D91A6FD13"}
+{"time":"2025-12-14T14:21:58.257634827+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"B4C9D9DF-D289-421D-92E4-8A6855D3AA44"}
+{"time":"2025-12-14T14:21:58.257642661+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"F94A5CC6-C329-4EB0-858A-2F77D4BA60D5"}
+{"time":"2025-12-14T14:21:58.257650376+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"63919C81-5F06-4B89-A899-0513E27CAA82"}
+{"time":"2025-12-14T14:21:58.257655155+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"4BDDBE4B-021B-44B1-8CCB-2CC288BE3515"}
+{"time":"2025-12-14T14:21:58.257661507+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"DAF6DA19-6A16-4B07-83B2-F45FAB831699"}
+{"time":"2025-12-14T14:21:58.257668761+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ORIG_600I_EXPLORER","item":"000EC670-7ACC-4771-B567-7C939D2A80C0"}
+{"time":"2025-12-14T14:21:58.25774241+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"CNOU_MUSTANG_DELTA","item":"A1744257-5125-4DED-9CA8-02A6CE9BB8C9"}
+{"time":"2025-12-14T14:21:58.258375725+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"CNOU_MUSTANG_DELTA","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.258381385+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"CNOU_MUSTANG_DELTA","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.258396183+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"CNOU_MUSTANG_DELTA","item":"FC15B6F0-D85A-4162-8C21-ACB79977F6E7"}
+{"time":"2025-12-14T14:21:58.258401934+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"CNOU_MUSTANG_DELTA","item":"89D12A4D-4327-45BA-954F-D81D91A6FD13"}
+{"time":"2025-12-14T14:21:58.258409278+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"CNOU_MUSTANG_DELTA","item":"C08CEDFA-FAFC-4EA6-9737-59FAEB4B1510"}
+{"time":"2025-12-14T14:21:58.258445396+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"CNOU_MUSTANG_DELTA","item":"7A37DC17-4984-4418-A70D-04BF22FEA031"}
+{"time":"2025-12-14T14:21:58.258450846+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"CNOU_MUSTANG_DELTA","item":"8FBAD42D-E9DC-46C9-A883-987459E0839D"}
+{"time":"2025-12-14T14:21:58.25846865+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"CNOU_MUSTANG_DELTA","item":"AA49DCFC-831A-41A0-BD98-58E51A8289D7"}
+{"time":"2025-12-14T14:21:58.258489559+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"CNOU_MUSTANG_DELTA","item":"6DF5BCDD-FD7F-40E5-9D71-A0BB0DD961F1"}
+{"time":"2025-12-14T14:21:58.258516711+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"10014564-8F8C-4D50-8F9D-5A24BB3FDF2F"}
+{"time":"2025-12-14T14:21:58.258557868+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"0660E15C-2B21-4C56-AF20-A3C77A066B67"}
+{"time":"2025-12-14T14:21:58.259112475+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.259153883+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.259170594+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"1B9FA3DF-12ED-40EC-841F-098A9D01C516"}
+{"time":"2025-12-14T14:21:58.259185272+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"9A48B047-69D8-44D0-84B0-14246524E5D0"}
+{"time":"2025-12-14T14:21:58.259215619+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"C08CEDFA-FAFC-4EA6-9737-59FAEB4B1510"}
+{"time":"2025-12-14T14:21:58.259239595+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"58977576-5B4C-4C54-9DEF-1DD8D0771045"}
+{"time":"2025-12-14T14:21:58.259244324+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"594550F8-D202-4D17-9F94-7334FFE65916"}
+{"time":"2025-12-14T14:21:58.259249042+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"D2D2D0A7-539F-48B5-AEDD-62A6C217EEDF"}
+{"time":"2025-12-14T14:21:58.259253711+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"ANVL_HORNET_F7C_MK2","item":"997F83D8-CE7C-4022-BF85-22388D7141D5"}
+{"time":"2025-12-14T14:21:58.259275482+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"A6B4604A-358B-4EE7-8C0F-F3F43427154D"}
+{"time":"2025-12-14T14:21:58.259280341+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"04F426D2-F414-4DFC-B214-39E111B69163"}
+{"time":"2025-12-14T14:21:58.259288226+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"337D09E9-8BDD-49CD-9493-4D808ADDA7EC"}
+{"time":"2025-12-14T14:21:58.259313664+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"5CC5F216-A296-4131-911A-684F2704267F"}
+{"time":"2025-12-14T14:21:58.259472274+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.259496479+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.259504695+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"28BD3EE1-BE9C-42C3-9126-095CDAFDBCE0"}
+{"time":"2025-12-14T14:21:58.259518351+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"87E3DA7A-A89F-45FD-911D-FC708D16964C"}
+{"time":"2025-12-14T14:21:58.259523961+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"BA184544-D9E8-44E5-98F7-2F86D91EA56A"}
+{"time":"2025-12-14T14:21:58.25952872+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"C08CEDFA-FAFC-4EA6-9737-59FAEB4B1510"}
+{"time":"2025-12-14T14:21:58.259543628+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"DRAK_MULE_BASE","item":"420B6D9C-2ABB-48BC-87B7-88F2BFB8BA0A"}
+{"time":"2025-12-14T14:21:58.25956024+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"EF9DA812-8FF1-4D62-8FF8-3E231DCDE497"}
+{"time":"2025-12-14T14:21:58.259566501+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"043DA36F-839D-4DBB-958E-9F6201467367"}
+{"time":"2025-12-14T14:21:58.259690876+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"26CD663D-9C7B-4EF6-8D08-E75EF0C43695"}
+{"time":"2025-12-14T14:21:58.259722265+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"C08CEDFA-FAFC-4EA6-9737-59FAEB4B1510"}
+{"time":"2025-12-14T14:21:58.259739117+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"6ECE5482-0819-4D68-AECE-FA7B9996E86F"}
+{"time":"2025-12-14T14:21:58.259743906+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"4219D7E2-5F03-4B65-92CA-5D04181EFB67"}
+{"time":"2025-12-14T14:21:58.259748224+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"834C4B02-9994-494B-AFE4-D1E8712D1C46"}
+{"time":"2025-12-14T14:21:58.259759656+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"19C367CD-81E9-4A01-88A4-3E6558533CD5"}
+{"time":"2025-12-14T14:21:58.259934255+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"1302B291-4753-42D1-A724-B8E3641071A5"}
+{"time":"2025-12-14T14:21:58.260379756+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"056628BE-ECEE-41B9-9DD2-BB32215E6E34"}
+{"time":"2025-12-14T14:21:58.260386058+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"4A9EBF31-A405-4B68-9886-B4A47BD1B61D"}
+{"time":"2025-12-14T14:21:58.260390897+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"C5B72683-279F-4435-8E22-1CD9431BC251"}
+{"time":"2025-12-14T14:21:58.26039797+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"FF99D168-9428-4BBE-84AC-4033E6BD46AE"}
+{"time":"2025-12-14T14:21:58.260405565+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"4D72F73D-0EFE-4A08-A45A-B59CEFE58E26"}
+{"time":"2025-12-14T14:21:58.260410945+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"D382F03C-AD1F-4062-91A0-CFABB83C5B9E"}
+{"time":"2025-12-14T14:21:58.26047712+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"BD9207AD-570A-4AAA-891A-0E4393B5A789"}
+{"time":"2025-12-14T14:21:58.26048276+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"D07C82F5-68FA-447D-AB3E-AC8B76BD9AFF"}
+{"time":"2025-12-14T14:21:58.260488471+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"5D303EE2-163E-4A74-BCEE-A421DEEFBD9B"}
+{"time":"2025-12-14T14:21:58.26049836+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"901E8E7A-995B-4FF4-AB70-E3B3F209095D"}
+{"time":"2025-12-14T14:21:58.260505223+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"DBF181FD-CC33-4EA9-B943-BA69DA8F9412"}
+{"time":"2025-12-14T14:21:58.260534488+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"6A56D6B3-3863-4B25-A726-CB3DF970A291"}
+{"time":"2025-12-14T14:21:58.26054112+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"89D12A4D-4327-45BA-954F-D81D91A6FD13"}
+{"time":"2025-12-14T14:21:58.260557822+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"B63B4B41-B64F-4389-953C-8ADC7B7C5B63"}
+{"time":"2025-12-14T14:21:58.260570396+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"BF52CE47-C7E0-4C9D-A216-192571409F4D"}
+{"time":"2025-12-14T14:21:58.260587358+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"E1D1534F-5CA3-4AC6-970F-4C461B169D77"}
+{"time":"2025-12-14T14:21:58.260594361+01:00","level":"WARN","msg":"Loadout references unknown item","variant":"MIS_STARLANCER_MAX","item":"CE98B8AD-C7A3-4E64-AFE1-9729355DB0B1"}
+{"time":"2025-12-14T14:21:58.272038095+01:00","level":"INFO","msg":"Using loadout fallback for hardpoints","count":21247}
+{"time":"2025-12-14T14:21:58.27205169+01:00","level":"INFO","msg":"Using loadout fallback for installed items","count":14689}
+{"time":"2025-12-14T14:21:59.040996425+01:00","level":"INFO","msg":"Skipping hardpoints outside allowlist","skipped":21083}
+{"time":"2025-12-14T14:21:59.091601033+01:00","level":"WARN","msg":"No default company category detected; normalized companies will not get a fallback category."}
+{"time":"2025-12-14T14:21:59.091611382+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"<= PLACEHOLDER =>"}
+{"time":"2025-12-14T14:21:59.091617173+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"@ITEM_NAMEURSA_BLACK_WHITE_GREY"}
+{"time":"2025-12-14T14:21:59.09162054+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"@ITEM_NAMEURSA_BLUE_WHITE_GREY"}
+{"time":"2025-12-14T14:21:59.091623525+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"@ITEM_NAMEURSA_TEAL_WHITE_GREY"}
+{"time":"2025-12-14T14:21:59.091626551+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"ACE ASTROGATION"}
+{"time":"2025-12-14T14:21:59.091629547+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"AEG"}
+{"time":"2025-12-14T14:21:59.091632352+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"AEGIS DYNAMICS"}
+{"time":"2025-12-14T14:21:59.091635267+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"ANVIL AEROSPACE"}
+{"time":"2025-12-14T14:21:59.091637642+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"ANVL"}
+{"time":"2025-12-14T14:21:59.09164213+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"AOPOA"}
+{"time":"2025-12-14T14:21:59.091646418+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"ARGO"}
+{"time":"2025-12-14T14:21:59.091654033+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"ARGO ASTRONAUTICS"}
+{"time":"2025-12-14T14:21:59.091659032+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"ASD"}
+{"time":"2025-12-14T14:21:59.091661888+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"BANU"}
+{"time":"2025-12-14T14:21:59.091664913+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"BRRA"}
+{"time":"2025-12-14T14:21:59.091667699+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"CNOU"}
+{"time":"2025-12-14T14:21:59.091670504+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"COMMODITIES"}
+{"time":"2025-12-14T14:21:59.091673429+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"COMMODITY_UILO_C"}
+{"time":"2025-12-14T14:21:59.091676175+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"CONSOLIDATED OUTLAND"}
+{"time":"2025-12-14T14:21:59.09167908+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"CRUS"}
+{"time":"2025-12-14T14:21:59.091681905+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"CRUSADER INDUSTRIES"}
+{"time":"2025-12-14T14:21:59.091684711+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"DRAKE INTERPLANETARY"}
+{"time":"2025-12-14T14:21:59.091687596+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"ESPERIA"}
+{"time":"2025-12-14T14:21:59.091690351+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"ESPR"}
+{"time":"2025-12-14T14:21:59.091693117+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"FFSY"}
+{"time":"2025-12-14T14:21:59.091696202+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"GATAC MANUFACTURE"}
+{"time":"2025-12-14T14:21:59.091699028+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"GEND"}
+{"time":"2025-12-14T14:21:59.091701973+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"GREYCAT INDUSTRIAL"}
+{"time":"2025-12-14T14:21:59.091704919+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"GRIN"}
+{"time":"2025-12-14T14:21:59.091707905+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"HRST"}
+{"time":"2025-12-14T14:21:59.09171062+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"KRON"}
+{"time":"2025-12-14T14:21:59.091714317+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"KRUGER INTERGALACTIC STARTED AS A CUSTOM MACHINED PARTS MANUFACTURER ON BOREA IN THE MAGNUS SYSTEM, EVENTUALLY EXPANDED INTO WEAPON DEVELOPMENT AND FINALLY AS A MANUFACTURER OF SHORT-RANGE SHIPS LIKE THE P-52."}
+{"time":"2025-12-14T14:21:59.091717723+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"LPLT"}
+{"time":"2025-12-14T14:21:59.091720608+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"LYNX MOONRISE LIVERY"}
+{"time":"2025-12-14T14:21:59.091723674+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"LYNX MOONSHADOW LIVERY"}
+{"time":"2025-12-14T14:21:59.091726169+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"LYNX NEBULA LIVERY"}
+{"time":"2025-12-14T14:21:59.091728994+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"MIRAI"}
+{"time":"2025-12-14T14:21:59.09173221+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"MIS"}
+{"time":"2025-12-14T14:21:59.091735336+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"MUSASHI INDUSTRIAL & STARFLIGHT CONCERN"}
+{"time":"2025-12-14T14:21:59.091738813+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"MXOX"}
+{"time":"2025-12-14T14:21:59.091741668+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"NAVE"}
+{"time":"2025-12-14T14:21:59.091744053+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"NOVP"}
+{"time":"2025-12-14T14:21:59.091748651+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"ORIGIN JUMPWORKS"}
+{"time":"2025-12-14T14:21:59.091754042+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"PRAR"}
+{"time":"2025-12-14T14:21:59.091759342+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"RAFT ANCHOR LIVERY"}
+{"time":"2025-12-14T14:21:59.091764261+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"ROBERTS SPACE INDUSTRIES"}
+{"time":"2025-12-14T14:21:59.091769601+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"RSI"}
+{"time":"2025-12-14T14:21:59.091774741+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"TALN"}
+{"time":"2025-12-14T14:21:59.091779269+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"TARS"}
+{"time":"2025-12-14T14:21:59.091784319+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"TRAS"}
+{"time":"2025-12-14T14:21:59.091789529+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"TUMBRIL LAND SYSTEMS"}
+{"time":"2025-12-14T14:21:59.091793726+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"TYDT"}
+{"time":"2025-12-14T14:21:59.091796462+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"UEE"}
+{"time":"2025-12-14T14:21:59.091800199+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"UIHI_A"}
+{"time":"2025-12-14T14:21:59.091805048+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"UILO_A"}
+{"time":"2025-12-14T14:21:59.091808204+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"UILO_B"}
+{"time":"2025-12-14T14:21:59.091811099+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"UILO_C"}
+{"time":"2025-12-14T14:21:59.091814235+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"UILO_C_2"}
+{"time":"2025-12-14T14:21:59.09181698+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"UIMI_A"}
+{"time":"2025-12-14T14:21:59.091819766+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"VNC"}
+{"time":"2025-12-14T14:21:59.091823042+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"WETK"}
+{"time":"2025-12-14T14:21:59.091825957+01:00","level":"WARN","msg":"Skipping normalized company without existing Directus entry","code":"XNAA"}
+{"time":"2025-12-14T14:22:03.899478559+01:00","level":"INFO","msg":"Directus version already exists","collection":"ships","item":"8255f67e-c8be-430a-9539-9a73d3549c1d","version_key":"V4.3.2-LIVE","version_id":"dfa1b058-8191-411a-9276-55ad0d68375b","has_snapshot":true}
+{"time":"2025-12-14T14:25:47.970176717+01:00","level":"INFO","msg":"Syncing items","total":62,"skipped_non_allowlisted":7008}
+{"time":"2025-12-14T14:27:44.327456382+01:00","level":"ERROR","msg":"Directus version request failed","path":"/versions","status":"500 Internal Server Error","body":"{\"errors\":[{\"message\":\"select \\\"directus_collections\\\".\\\"collection\\\", \\\"directus_collections\\\".\\\"icon\\\", \\\"directus_collections\\\".\\\"note\\\", \\\"directus_collections\\\".\\\"display_template\\\", \\\"directus_collections\\\".\\\"hidden\\\", \\\"directus_collections\\\".\\\"singleton\\\", \\\"directus_collections\\\".\\\"translations\\\", \\\"directus_collections\\\".\\\"archive_field\\\", \\\"directus_collections\\\".\\\"archive_app_filter\\\", \\\"directus_collections\\\".\\\"archive_value\\\", \\\"directus_collections\\\".\\\"unarchive_value\\\", \\\"directus_collect..."}
+{"time":"2025-12-14T14:27:44.327494775+01:00","level":"ERROR","msg":"ETL failed","error":"load phase failed: update hardpoint ANVL_ARROW_BASE:HARDPOINT_QUANTUM_DRIVE: directus POST /versions failed: 500 Internal Server Error (body: {\"errors\":[{\"message\":\"select \\\"directus_collections\\\".\\\"collection\\\", \\\"directus_collections\\\".\\\"icon\\\", \\\"directus_collections\\\".\\\"note\\\", \\\"directus_collections\\\".\\\"display_template\\\", \\\"directus_collections\\\".\\\"hidden\\\", \\\"directus_collections\\\".\\\"singleton\\\", \\\"directus_collections\\\".\\\"translations\\\", \\\"directus_collections\\\".\\\"archive_field\\\", \\\"directus_collections\\\".\\\"archive_app_filter\\\", \\\"directus_collections\\\".\\\"archive_value\\\", \\\"directus_collections\\\".\\\"unarchive_value\\\", \\\"directus_collections\\\".\\\"sort_field\\\", \\\"directus_collections\\\".\\\"accountability\\\", \\\"directus_collections\\\".\\\"color\\\", \\\"directus_collections\\\".\\\"item_duplication_fields\\\", \\\"directus_collections\\\".\\\"sort\\\", \\\"directus_collections\\\".\\\"group\\\", \\\"directus_collections\\\".\\\"collapse\\\", \\\"directus_collections\\\".\\\"preview_url\\\", \\\"directus_collections\\\".\\\"versioning\\\" from \\\"directus_collections\\\" order by \\\"directus_collections\\\".\\\"collection\\\" asc - Connection terminated unexpectedly\",\"extensions\":{\"code\":\"INTERNAL_SERVER_ERROR\"}}]})"}
+exit status 1
+

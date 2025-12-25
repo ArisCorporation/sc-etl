@@ -29,6 +29,7 @@ type Options struct {
 	DefaultCompanyCategory     string
 	AllowedItemTypes           []string
 	AllowedHardpointCategories []string
+	PromoteVersions            *bool
 }
 
 // Run writes the normalized bundle to Directus.

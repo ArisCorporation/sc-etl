@@ -429,16 +429,19 @@ func coalesce(values ...string) string {
 }
 
 func toAbs(path string) string {
-	if filepath.IsAbs(path) {
-		return path
-	}
 	if path == "" {
 		return ""
 	}
-	if wd, err := os.Getwd(); err == nil {
-		return filepath.Join(wd, path)
+	if filepath.IsAbs(path) {
+		return path
 	}
-	return filepath.Clean(path)
+	if strings.ContainsAny(path, "/\\") {
+		if wd, err := os.Getwd(); err == nil {
+			return filepath.Join(wd, path)
+		}
+		return filepath.Clean(path)
+	}
+	return path
 }
 
 func validateRequiredFiles(rawDir string) error {
