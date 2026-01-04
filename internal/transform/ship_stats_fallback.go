@@ -95,6 +95,12 @@ func buildRawShipStatPayload(ship map[string]any) map[string]any {
 	if shield := strings.TrimSpace(optionalString(ship["ShieldFaceType"])); shield != "" {
 		payload["shield_face_type"] = shield
 	}
+	if role := strings.TrimSpace(optionalString(ship["Role"])); role != "" {
+		payload["role"] = role
+	}
+	if career := strings.TrimSpace(optionalString(ship["Career"])); career != "" {
+		payload["career"] = career
+	}
 	dimensions := map[string]any{}
 	if width := optionalNumber(ship["Width"]); !math.IsNaN(width) {
 		dimensions["width"] = width

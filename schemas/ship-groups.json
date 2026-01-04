@@ -4,6 +4,7 @@
     "AEG_AVENGER": {
       "manufacturer": "AEG",
       "name": "Avenger",
+      "combine_variant_code": true,
       "variants": {
         "STALKER": "AEGS_Avenger_Stalker",
         "TITAN": "AEGS_Avenger_Titan",
@@ -14,6 +15,7 @@
     "AEG_ECLIPSE": {
       "manufacturer": "AEG",
       "name": "Eclipse",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "AEGS_Eclipse"
       }
@@ -21,6 +23,7 @@
     "AEG_GLADIUS": {
       "manufacturer": "AEG",
       "name": "Gladius",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "AEGS_Gladius",
         "CROCODILE": "AEGS_Gladius_Crocodile",
@@ -32,29 +35,24 @@
     "AEG_HAMMERHEAD": {
       "manufacturer": "AEG",
       "name": "Hammerhead",
+      "combine_variant_code": true,
       "variants": {
-        "BASE": "AEGS_Hammerhead",
-        "SHOWDOWN": "AEGS_Hammerhead_Showdown"
+        "BASE": "AEGS_Hammerhead"
       }
     },
     "AEG_IDRIS": {
       "manufacturer": "AEG",
       "name": "Idris",
+      "combine_variant_code": true,
       "variants": {
         "M": "AEGS_Idris_M",
         "P": "AEGS_Idris_P"
       }
     },
-    "AEG_IDRIS_P_FW": {
-      "manufacturer": "AEG",
-      "name": "Idris P Fw",
-      "variants": {
-        "25": "AEGS_Idris_P_FW_25"
-      }
-    },
     "AEG_JAVELIN": {
       "manufacturer": "AEG",
       "name": "Javelin",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "AEGS_Javelin"
       }
@@ -62,14 +60,15 @@
     "AEG_RECLAIMER": {
       "manufacturer": "AEG",
       "name": "Reclaimer",
+      "combine_variant_code": true,
       "variants": {
-        "BASE": "AEGS_Reclaimer",
-        "SHOWDOWN": "AEGS_Reclaimer_Showdown"
+        "BASE": "AEGS_Reclaimer"
       }
     },
     "AEG_REDEEMER": {
       "manufacturer": "AEG",
       "name": "Redeemer",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "AEGS_Redeemer"
       }
@@ -77,6 +76,7 @@
     "AEG_RETALIATOR": {
       "manufacturer": "AEG",
       "name": "Retaliator",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "AEGS_Retaliator"
       }
@@ -84,6 +84,7 @@
     "AEG_SABRE": {
       "manufacturer": "AEG",
       "name": "Sabre",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "AEGS_Sabre",
         "COMET": "AEGS_Sabre_Comet",
@@ -111,6 +112,7 @@
     "AEG_VANGUARD": {
       "manufacturer": "AEG",
       "name": "Vanguard",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "AEGS_Vanguard",
         "HARBINGER": "AEGS_Vanguard_Harbinger",
@@ -121,6 +123,7 @@
     "ANVL_ARROW": {
       "manufacturer": "ANVL",
       "name": "Arrow",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Arrow"
       }
@@ -128,6 +131,7 @@
     "ANVL_ASGARD": {
       "manufacturer": "ANVL",
       "name": "Asgard",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Asgard"
       }
@@ -135,6 +139,7 @@
     "ANVL_BALLISTA": {
       "manufacturer": "ANVL",
       "name": "Ballista",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Ballista"
       }
@@ -142,15 +147,17 @@
     "ANVL_C8 ": {
       "manufacturer": "ANVL",
       "name": "Pisces",
+      "combine_variant_code": true,
       "variants": {
-        "C8": "ANVL_C8_Pisces",
-        "C8X": "ANVL_C8X_Pisces_Expedition",
-        "C8R": "ANVL_C8R_Pisces"
+        "C8 Pisces": "ANVL_C8_Pisces",
+        "C8X Pisces": "ANVL_C8X_Pisces_Expedition",
+        "C8R Pisces": "ANVL_C8R_Pisces"
       }
     },
     "ANVL_CARRACK": {
       "manufacturer": "ANVL",
       "name": "Carrack",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Carrack",
         "EXPEDITION": "ANVL_Carrack_Expedition"
@@ -159,6 +166,7 @@
     "ANVL_CENTURION": {
       "manufacturer": "ANVL",
       "name": "Centurion",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Centurion"
       }
@@ -166,6 +174,7 @@
     "ANVL_GLADIATOR": {
       "manufacturer": "ANVL",
       "name": "Gladiator",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Gladiator"
       }
@@ -173,6 +182,7 @@
     "ANVL_HAWK": {
       "manufacturer": "ANVL",
       "name": "Hawk",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Hawk"
       }
@@ -180,6 +190,7 @@
     "ANVL_HORNET": {
       "manufacturer": "ANVL",
       "name": "Hornet",
+      "combine_variant_code": true,
       "variants": {
         "F7C": "ANVL_Hornet_F7C",
         "F7C_MK2": {
@@ -205,6 +216,7 @@
     "ANVL_HORNET_F7A": {
       "manufacturer": "ANVL",
       "name": "Hornet F7a",
+      "combine_variant_code": true,
       "variants": {
         "MK1": "ANVL_Hornet_F7A_Mk1",
         "MK2": {
@@ -225,6 +237,7 @@
     "ANVL_HURRICANE": {
       "manufacturer": "ANVL",
       "name": "Hurricane",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Hurricane"
       }
@@ -232,6 +245,7 @@
     "ANVL_LIGHTNING": {
       "manufacturer": "ANVL",
       "name": "Lightning",
+      "combine_variant_code": true,
       "variants": {
         "F8": "ANVL_Lightning_F8",
         "F8C": {
@@ -260,6 +274,7 @@
     "ANVL_SPARTAN": {
       "manufacturer": "ANVL",
       "name": "Spartan",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Spartan"
       }
@@ -267,6 +282,7 @@
     "ANVL_TERRAPIN": {
       "manufacturer": "ANVL",
       "name": "Terrapin",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Terrapin",
         "MEDIC": {
@@ -283,6 +299,7 @@
     "ANVL_VALKYRIE": {
       "manufacturer": "ANVL",
       "name": "Valkyrie",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ANVL_Valkyrie"
       }
@@ -290,6 +307,7 @@
     "ARGO_ATLS": {
       "manufacturer": "ARGO",
       "name": "Atls",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ARGO_ATLS",
         "GEO": {
@@ -317,22 +335,23 @@
     "ARGO_CSV": {
       "manufacturer": "ARGO",
       "name": "Csv",
+      "combine_variant_code": true,
       "variants": {
-        "CARGO": "ARGO_CSV_Cargo"
+        "BASE": "ARGO_CSV_Cargo"
       }
     },
     "ARGO_MOLE": {
       "manufacturer": "ARGO",
       "name": "Mole",
+      "combine_variant_code": true,
       "variants": {
-        "BASE": "ARGO_MOLE",
-        "CARBON": "ARGO_MOLE_Carbon",
-        "TALUS": "ARGO_MOLE_Talus"
+        "BASE": "ARGO_MOLE"
       }
     },
     "ARGO_MPUV": {
       "manufacturer": "ARGO",
       "name": "Mpuv",
+      "combine_variant_code": true,
       "variants": {
         "1T": "ARGO_MPUV_1T",
         "BASE": "ARGO_MPUV",
@@ -342,6 +361,7 @@
     "ARGO_RAFT": {
       "manufacturer": "ARGO",
       "name": "Raft",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ARGO_RAFT"
       }
@@ -349,6 +369,7 @@
     "ARGO_SRV": {
       "manufacturer": "ARGO",
       "name": "Srv",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ARGO_SRV"
       }
@@ -356,6 +377,7 @@
     "BANU_DEFENDER": {
       "manufacturer": "BANU",
       "name": "Defender",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "BANU_Defender"
       }
@@ -363,6 +385,7 @@
     "CNOU_HOVERQUAD": {
       "manufacturer": "CNOU",
       "name": "Hoverquad",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "CNOU_HoverQuad"
       }
@@ -370,6 +393,7 @@
     "CNOU_MUSTANG": {
       "manufacturer": "CNOU",
       "name": "Mustang",
+      "combine_variant_code": true,
       "variants": {
         "ALPHA": "CNOU_Mustang_Alpha",
         "ALPHA_CITIZENCON2018": "CNOU_Mustang_Alpha_CitizenCon2018",
@@ -382,6 +406,7 @@
     "CNOU_NOMAD": {
       "manufacturer": "CNOU",
       "name": "Nomad",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "CNOU_Nomad"
       }
@@ -389,6 +414,7 @@
     "CRUS_INTREPID": {
       "manufacturer": "CRUS",
       "name": "Intrepid",
+      "combine_variant_code": true,
       "variants": {
         "BASE": {
           "match": "CRUS_Intrepid",
@@ -404,22 +430,24 @@
     "CRUS_SPIRIT": {
       "manufacturer": "CRUS",
       "name": "Spirit",
+      "combine_variant_code": true,
       "variants": {
         "A1": "CRUS_Spirit_A1",
-        "C1": "CRUS_Spirit_C1",
-        "C1_CIVILIAN": "CRUS_Spirit_C1_Civilian"
+        "C1": "CRUS_Spirit_C1"
       }
     },
     "CRUS_STAR": {
       "manufacturer": "CRUS",
       "name": "Star",
+      "combine_variant_code": true,
       "variants": {
-        "RUNNER": "CRUS_Star_Runner"
+        "BASE": "CRUS_Star_Runner"
       }
     },
     "CRUS_STARFIGHTER": {
       "manufacturer": "CRUS",
       "name": "Starfighter",
+      "combine_variant_code": true,
       "variants": {
         "INFERNO": "CRUS_Starfighter_Inferno",
         "ION": "CRUS_Starfighter_Ion"
@@ -427,7 +455,8 @@
     },
     "CRUS_STARLIFTER": {
       "manufacturer": "CRUS",
-      "name": "Starlifter",
+      "name": "Hercules",
+      "combine_variant_code": true,
       "variants": {
         "A2": "CRUS_Starlifter_A2",
         "C2": "CRUS_Starlifter_C2",
@@ -437,6 +466,7 @@
     "DRAK_BUCCANEER": {
       "manufacturer": "DRAK",
       "name": "Buccaneer",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "DRAK_Buccaneer"
       }
@@ -444,14 +474,23 @@
     "DRAK_CATERPILLAR": {
       "manufacturer": "DRAK",
       "name": "Caterpillar",
+      "combine_variant_code": true,
       "variants": {
-        "BASE": "DRAK_Caterpillar",
-        "PIRATE": "DRAK_Caterpillar_Pirate"
+        "BASE": {
+          "match": "DRAK_Caterpillar",
+          "configurations": {
+            "CATERPILLAR_PIRATE": {
+              "name": "Drake Caterpillar Pirate Edition",
+              "ship_variant_ids": ["DRAK_CATERPILLAR_PIRATE"]
+            }
+          }
+        }
       }
     },
     "DRAK_CORSAIR": {
       "manufacturer": "DRAK",
       "name": "Corsair",
+      "combine_variant_code": true,
       "variants": {
         "BASE": {
           "match": "DRAK_Corsair",
@@ -471,6 +510,7 @@
     "DRAK_CUTLASS": {
       "manufacturer": "DRAK",
       "name": "Cutlass",
+      "combine_variant_code": true,
       "variants": {
         "BLACK": {
           "match": "DRAK_Cutlass_Black",
@@ -493,6 +533,7 @@
     "DRAK_CUTTER": {
       "manufacturer": "DRAK",
       "name": "Cutter",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "DRAK_Cutter",
         "RAMBLER": "DRAK_Cutter_Rambler",
@@ -502,6 +543,7 @@
     "DRAK_DRAGONFLY": {
       "manufacturer": "DRAK",
       "name": "Dragonfly",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "DRAK_Dragonfly",
         "PINK": "DRAK_Dragonfly_Pink",
@@ -511,6 +553,7 @@
     "DRAK_GOLEM": {
       "manufacturer": "DRAK",
       "name": "Golem",
+      "combine_variant_code": true,
       "variants": {
         "BASE": {
           "match": "DRAK_Golem",
@@ -526,6 +569,7 @@
     "DRAK_HERALD": {
       "manufacturer": "DRAK",
       "name": "Herald",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "DRAK_Herald"
       }
@@ -533,6 +577,7 @@
     "DRAK_MULE": {
       "manufacturer": "DRAK",
       "name": "Mule",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "DRAK_Mule"
       }
@@ -540,6 +585,7 @@
     "DRAK_VULTURE": {
       "manufacturer": "DRAK",
       "name": "Vulture",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "DRAK_Vulture"
       }
@@ -547,6 +593,7 @@
     "ESPR_BLADE": {
       "manufacturer": "ESPR",
       "name": "Blade",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "VNCL_Blade"
       }
@@ -554,6 +601,7 @@
     "ESPR_GLAIVE": {
       "manufacturer": "ESPR",
       "name": "Glaive",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "VNCL_Glaive"
       }
@@ -561,6 +609,7 @@
     "ESPR_PROWLER": {
       "manufacturer": "ESPR",
       "name": "Prowler",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ESPR_Prowler",
         "UTILITY": "ESPR_Prowler_Utility"
@@ -569,6 +618,7 @@
     "ESPR_SCYTHE": {
       "manufacturer": "ESPR",
       "name": "Scythe",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "VNCL_Scythe"
       }
@@ -576,6 +626,7 @@
     "ESPR_TALON": {
       "manufacturer": "ESPR",
       "name": "Talon",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ESPR_Talon",
         "SHRIKE": "ESPR_Talon_Shrike"
@@ -584,18 +635,19 @@
     "GAM_SYULEN": {
       "manufacturer": "GAM",
       "name": "Syulen",
+      "combine_variant_code": true,
       "variants": {
-        "BASE": "GAMA_Syulen",
-        "EXEC_MILITARY": {
-          "match": "GAMA_Syulen_Exec_Military",
+        "BASE": {
+          "match": "GAMA_Syulen",
           "configurations": {
-            "SYULEN_PYAM_EXEC": "Syulen PYAM Exec"
-          }
-        },
-        "EXEC_STEALTH": {
-          "match": "GAMA_Syulen_Exec_Stealth",
-          "configurations": {
-            "SYULEN_PYAM_EXEC": "Syulen PYAM Exec"
+            "SYULEN_PYAM_COLLECTOR_MILITARY": {
+              "name": "Syulen PYAM Collector Military",
+              "ship_variant_ids": ["GAMA_Syulen_Exec_Military"]
+            },
+            "SYULEN_PYAM_COLLECTOR_STEALTH": {
+              "name": "Syulen PYAM Collector Stealth",
+              "ship_variant_ids": ["GAMA_Syulen_Exec_Stealth"]
+            }
           }
         }
       }
@@ -603,6 +655,7 @@
     "GRIN_MTC": {
       "manufacturer": "GRIN",
       "name": "Mtc",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "GRIN_MTC"
       }
@@ -610,6 +663,7 @@
     "GRIN_PTV": {
       "manufacturer": "GRIN",
       "name": "Ptv",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "GRIN_PTV"
       }
@@ -617,6 +671,7 @@
     "GRIN_ROC": {
       "manufacturer": "GRIN",
       "name": "Roc",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "GRIN_ROC",
         "DS": "GRIN_ROC_DS"
@@ -625,35 +680,32 @@
     "GRIN_STV": {
       "manufacturer": "GRIN",
       "name": "Stv",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "GRIN_STV"
       }
     },
-    "KRI_L21": {
+    "KRI_L": {
       "manufacturer": "KRI",
-      "name": "L21",
+      "name": "L",
+      "combine_variant_code": true,
       "variants": {
-        "WOLF": "KRIG_L21_Wolf"
+        "L21 WOLF": "KRIG_L21_Wolf"
       }
     },
-    "KRI_P52": {
+    "KRI_P": {
       "manufacturer": "KRI",
-      "name": "P52",
+      "name": "P",
+      "combine_variant_code": true,
       "variants": {
-        "MERLIN": "KRIG_P52_Merlin"
-      }
-    },
-    "KRI_P72": {
-      "manufacturer": "KRI",
-      "name": "P72",
-      "variants": {
-        "ARCHIMEDES": "KRIG_P72_Archimedes",
-        "ARCHIMEDES_EMERALD": "KRIG_P72_Archimedes_Emerald"
+        "P52 MERLIN": "KRIG_P52_Merlin",
+        "P72 ARCHIMEDES": "KRIG_P72_Archimedes"
       }
     },
     "MIS_FORTUNE": {
       "manufacturer": "MIS",
       "name": "Fortune",
+      "combine_variant_code": true,
       "variants": {
         "BASE": {
           "match": "MISC_Fortune",
@@ -669,22 +721,18 @@
     "MIS_FREELANCER": {
       "manufacturer": "MIS",
       "name": "Freelancer",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "MISC_Freelancer",
         "DUR": "MISC_Freelancer_DUR",
-        "MAX": "MISC_Freelancer_MAX"
-      }
-    },
-    "MIS_FREELANCER_MIS": {
-      "manufacturer": "MIS",
-      "name": "Freelancer Mis",
-      "variants": {
-        "BASE": "MISC_Freelancer_MIS"
+        "MAX": "MISC_Freelancer_MAX",
+        "MIS": "MISC_Freelancer_MIS"
       }
     },
     "MIS_FURY": {
       "manufacturer": "MIS",
       "name": "Fury",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "MISC_Fury",
         "LX": "MISC_Fury_LX",
@@ -694,10 +742,10 @@
     "MIS_GUARDIAN": {
       "manufacturer": "MIS",
       "name": "Guardian",
+      "combine_variant_code": true,
       "variants": {
-        "BASE": "MRAI_Guardian",
-        "MILITARY": {
-          "match": "MRAI_Guardian_Military",
+        "BASE": {
+          "match": "MRAI_Guardian",
           "configurations": {
             "MIRAI_GUARDIAN_WIKELO_WAR_SPECIAL": {
               "name": "Mirai Guardian Wikelo War Special",
@@ -720,6 +768,7 @@
     "MIS_HULL": {
       "manufacturer": "MIS",
       "name": "Hull",
+      "combine_variant_code": true,
       "variants": {
         "A": "MISC_Hull_A",
         "C": "MISC_Hull_C"
@@ -728,6 +777,7 @@
     "MIS_PROSPECTOR": {
       "manufacturer": "MIS",
       "name": "Prospector",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "MISC_Prospector"
       }
@@ -735,6 +785,7 @@
     "MIS_PULSE": {
       "manufacturer": "MIS",
       "name": "Pulse",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "MRAI_Pulse",
         "LX": "MRAI_Pulse_LX"
@@ -743,6 +794,7 @@
     "MIS_RAZOR": {
       "manufacturer": "MIS",
       "name": "Razor",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "MISC_Razor",
         "EX": "MISC_Razor_EX",
@@ -752,6 +804,7 @@
     "MIS_RELIANT": {
       "manufacturer": "MIS",
       "name": "Reliant",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "MISC_Reliant",
         "MAKO": "MISC_Reliant_Mako",
@@ -762,6 +815,7 @@
     "MIS_STARFARER": {
       "manufacturer": "MIS",
       "name": "Starfarer",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "MISC_Starfarer",
         "GEMINI": "MISC_Starfarer_Gemini"
@@ -770,6 +824,7 @@
     "MIS_STARLANCER": {
       "manufacturer": "MIS",
       "name": "Starlancer",
+      "combine_variant_code": true,
       "variants": {
         "MAX": {
           "match": "MISC_Starlancer_Max",
@@ -794,32 +849,36 @@
     "ORIG_100I": {
       "manufacturer": "ORIG",
       "name": "100i",
+      "combine_variant_code": false,
       "variants": {
-        "100I": "ORIG_100i",
-        "125A": "ORIG_125a",
-        "135C": "ORIG_135c"
+        "100i": "ORIG_100i",
+        "125a": "ORIG_125a",
+        "135c": "ORIG_135c"
       }
     },
     "ORIG_300I": {
       "manufacturer": "ORIG",
       "name": "300i",
+      "combine_variant_code": false,
       "variants": {
-        "300I": "ORIG_300i",
-        "315P": "ORIG_315p",
-        "325A": "ORIG_325a",
-        "350R": "ORIG_350r"
+        "300i": "ORIG_300i",
+        "315p": "ORIG_315p",
+        "325a": "ORIG_325a",
+        "350r": "ORIG_350r"
       }
     },
     "ORIG_400I": {
       "manufacturer": "ORIG",
       "name": "400i",
+      "combine_variant_code": true,
       "variants": {
-        "400I": "ORIG_400i"
+        "BASE": "ORIG_400i"
       }
     },
     "ORIG_600I": {
       "manufacturer": "ORIG",
       "name": "600i",
+      "combine_variant_code": true,
       "variants": {
         "EXPLORER": "ORIG_600i",
         "TOURING": "ORIG_600i_Touring",
@@ -829,6 +888,7 @@
     "ORIG_85X": {
       "manufacturer": "ORIG",
       "name": "85x",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ORIG_85X"
       }
@@ -836,13 +896,15 @@
     "ORIG_890JUMP": {
       "manufacturer": "ORIG",
       "name": "890 Jump",
+      "combine_variant_code": true,
       "variants": {
-        "890 Jump": "ORIG_890Jump"
+        "BASE": "ORIG_890Jump"
       }
     },
     "ORIG_M50": {
       "manufacturer": "ORIG",
       "name": "M50",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ORIG_m50"
       }
@@ -850,6 +912,7 @@
     "ORIG_X1": {
       "manufacturer": "ORIG",
       "name": "X1",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "ORIG_X1",
         "FORCE": "ORIG_X1_Force",
@@ -859,6 +922,7 @@
     "POWERSUIT_HULL": {
       "manufacturer": "POWERSUIT",
       "name": "Hull",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "PowerSuit"
       }
@@ -866,6 +930,7 @@
     "RSI_APOLLO": {
       "manufacturer": "RSI",
       "name": "Apollo",
+      "combine_variant_code": true,
       "variants": {
         "MEDIVAC": "RSI_Apollo_Medivac",
         "TRIAGE": "RSI_Apollo_Triage"
@@ -874,6 +939,7 @@
     "RSI_AURORA": {
       "manufacturer": "RSI",
       "name": "Aurora",
+      "combine_variant_code": true,
       "variants": {
         "CL": "RSI_Aurora_CL",
         "ES": "RSI_Aurora_ES",
@@ -885,16 +951,19 @@
     "RSI_CONSTELLATION": {
       "manufacturer": "RSI",
       "name": "Constellation",
+      "combine_variant_code": true,
       "variants": {
         "ANDROMEDA": "RSI_Constellation_Andromeda",
         "AQUILA": "RSI_Constellation_Aquila",
         "PHOENIX": "RSI_Constellation_Phoenix",
         "PHOENIX_EMERALD": "RSI_Constellation_Phoenix_Emerald",
-        "TAURUS": "RSI_Constellation_Taurus",
-        "TAURUS_MILITARY": {
-          "match": "RSI_Constellation_Taurus_Military",
+        "TAURUS": {
+          "match": "RSI_Constellation_Taurus",
           "configurations": {
-            "RSI_CONSTELLATION_TAURUS_WIKELO_WAR_SPECIAL": "RSI Constellation Taurus Wikelo War Special"
+            "RSI_CONSTELLATION_TAURUS_WIKELO_WAR_SPECIAL": {
+              "name": "RSI Constellation Taurus Wikelo War Special",
+              "ship_variant_ids": ["RSI_Constellation_Taurus_Military"]
+            }
           }
         }
       }
@@ -902,6 +971,7 @@
     "RSI_LYNX": {
       "manufacturer": "RSI",
       "name": "Lynx",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "RSI_Lynx"
       }
@@ -909,6 +979,7 @@
     "RSI_MANTIS": {
       "manufacturer": "RSI",
       "name": "Mantis",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "RSI_Mantis"
       }
@@ -916,6 +987,7 @@
     "RSI_METEOR": {
       "manufacturer": "RSI",
       "name": "Meteor",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "RSI_Meteor"
       }
@@ -923,6 +995,7 @@
     "RSI_POLARIS": {
       "manufacturer": "RSI",
       "name": "Polaris",
+      "combine_variant_code": true,
       "variants": {
         "BASE": {
           "match": "RSI_Polaris",
@@ -938,11 +1011,11 @@
     "RSI_SCORPIUS": {
       "manufacturer": "RSI",
       "name": "Scorpius",
+      "combine_variant_code": true,
       "variants": {
         "ANTARES": "RSI_Scorpius_Antares",
-        "BASE": "RSI_Scorpius",
-        "STEALTH": {
-          "match": "RSI_Scorpius_Stealth",
+        "BASE": {
+          "match": "RSI_Scorpius",
           "configurations": {
             "RSI_SCORPIUS_WIKELO_SNEAK_SPECIAL": {
               "name": "RSI Scorpius Wikelo Sneak Special",
@@ -955,6 +1028,7 @@
     "RSI_URSA": {
       "manufacturer": "RSI",
       "name": "Ursa",
+      "combine_variant_code": true,
       "variants": {
         "MEDIVAC": {
           "match": "RSI_Ursa_Medivac",
@@ -965,12 +1039,13 @@
             }
           }
         },
-        "ROVER": "RSI_Ursa_Rover"
+        "BASE": "RSI_Ursa_Rover"
       }
     },
     "RSI_ZEUS": {
       "manufacturer": "RSI",
-      "name": "Zeus",
+      "name": "Zeus MK II",
+      "combine_variant_code": true,
       "variants": {
         "CL": "RSI_Zeus_CL",
         "ES": "RSI_Zeus_ES",
@@ -980,6 +1055,7 @@
     "TMBL_CYCLONE": {
       "manufacturer": "TMBL",
       "name": "Cyclone",
+      "combine_variant_code": true,
       "variants": {
         "AA": "TMBL_Cyclone_AA",
         "BASE": "TMBL_Cyclone",
@@ -992,6 +1068,7 @@
     "TMBL_NOVA": {
       "manufacturer": "TMBL",
       "name": "Nova",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "TMBL_Nova"
       }
@@ -999,6 +1076,7 @@
     "TMBL_STORM": {
       "manufacturer": "TMBL",
       "name": "Storm",
+      "combine_variant_code": true,
       "variants": {
         "AA": "TMBL_Storm_AA",
         "BASE": "TMBL_Storm"
@@ -1007,6 +1085,7 @@
     "XNAA_NOX": {
       "manufacturer": "XNAA",
       "name": "Nox",
+      "combine_variant_code": true,
       "variants": {
         "BASE": {
           "match": "XIAN_Nox",
@@ -1023,6 +1102,7 @@
     "XNAA_SANTOKYAI": {
       "manufacturer": "XNAA",
       "name": "Santokyai",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "XNAA_SanTokYai"
       }
@@ -1030,6 +1110,7 @@
     "XNAA_SCOUT": {
       "manufacturer": "XNAA",
       "name": "Scout",
+      "combine_variant_code": true,
       "variants": {
         "BASE": "XIAN_Scout"
       }

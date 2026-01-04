@@ -2,11 +2,14 @@ package transform
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ArisCorporation/sc-goetl/internal/lib"
 	"github.com/ArisCorporation/sc-goetl/internal/model"
@@ -24,7 +27,6 @@ type Result struct {
 
 // Run normalizes the raw Star Citizen data into the bundle consumed by loaders.
 func Run(ctx context.Context, dataRoot string, channel model.Channel, version string) (*Result, error) {
-	_ = ctx
 	channelKey := string(channel)
 	rawDir := filepath.Join(dataRoot, "raw", channelKey, version)
 	normalizedDir := filepath.Join(dataRoot, "normalized", channelKey, version)
@@ -99,13 +101,17 @@ func Run(ctx context.Context, dataRoot string, channel model.Channel, version st
 
 	grouping := LoadShipGrouping()
 
-	if len(shipStats) == 0 {
-		fallbackStats, err := buildShipStatsFallback(rawDir, grouping, shipRows)
-		if err != nil {
-			utils.Logger().Warn("Failed to build ship stats fallback", "error", err)
-		} else if len(fallbackStats) > 0 {
-			utils.Logger().Info("Using ship stats fallback", "count", len(fallbackStats))
-			shipStats = fallbackStats
+	fallbackStats, err := buildShipStatsFallback(rawDir, grouping, shipRows)
+	if err != nil {
+		utils.Logger().Warn("Failed to build ship stats fallback", "error", err)
+	}
+	if len(shipStats) == 0 && len(fallbackStats) > 0 {
+		utils.Logger().Info("Using ship stats fallback", "count", len(fallbackStats))
+		shipStats = fallbackStats
+	} else if len(shipStats) > 0 && len(fallbackStats) > 0 {
+		merged := mergeShipStatsFallback(shipStats, fallbackStats)
+		if merged > 0 {
+			utils.Logger().Info("Merged fallback ship stats fields", "updated_variants", merged)
 		}
 	}
 
@@ -137,7 +143,7 @@ func Run(ctx context.Context, dataRoot string, channel model.Channel, version st
 		Locales:        locales,
 	}
 
-	v2 := buildV2Bundle(channel, version, manufacturers, ships, variants, items, itemStats, hardpoints, shipStats, grouping, shipRows, variantRows, config.HardpointsAsCollection)
+	v2 := buildV2Bundle(ctx, channel, version, manufacturers, ships, variants, items, itemStats, hardpoints, shipStats, grouping, shipRows, variantRows, config.HardpointsAsCollection)
 
 	if err := utils.EnsureDir(normalizedDir); err != nil {
 		return nil, fmt.Errorf("ensure normalized dir: %w", err)
@@ -538,6 +544,41 @@ func normalizeShipStats(rows []map[string]any, variants map[string]model.Normali
 	return result
 }
 
+func mergeShipStatsFallback(primary []model.NormalizedShipStat, fallback []model.NormalizedShipStat) int {
+	if len(primary) == 0 || len(fallback) == 0 {
+		return 0
+	}
+	fallbackMap := map[string]map[string]any{}
+	for _, entry := range fallback {
+		if entry.ShipVariantExternalID == "" || entry.Stats == nil {
+			continue
+		}
+		fallbackMap[entry.ShipVariantExternalID] = entry.Stats
+	}
+	updated := 0
+	for idx := range primary {
+		payload, ok := fallbackMap[primary[idx].ShipVariantExternalID]
+		if !ok || len(payload) == 0 {
+			continue
+		}
+		if primary[idx].Stats == nil {
+			primary[idx].Stats = map[string]any{}
+		}
+		changed := false
+		for key, value := range payload {
+			if _, exists := primary[idx].Stats[key]; exists {
+				continue
+			}
+			primary[idx].Stats[key] = value
+			changed = true
+		}
+		if changed {
+			updated++
+		}
+	}
+	return updated
+}
+
 func normalizeInstalledItems(rows []map[string]any, variants map[string]model.NormalizedShipVariant, items map[string]model.NormalizedItem) []model.NormalizedInstalledItem {
 	result := []model.NormalizedInstalledItem{}
 	for _, row := range rows {
@@ -704,7 +745,26 @@ func ensureVariantBuilder(builders map[string]*variantBuilder, grouping *ShipGro
 	}
 	if grouping != nil {
 		if hull, ok := grouping.GetHull(hullKey); ok {
-			builder.Name = lib.CanonicalVariantName(hull.Name, code)
+			if hull.CombineVariantCode {
+				if strings.EqualFold(string(code), "BASE") {
+					builder.Name = lib.CanonicalVariantName(hull.Name, "BASE")
+				} else {
+					builder.Name = lib.CanonicalVariantName(hull.Name, code)
+				}
+			} else {
+				displayName := ""
+				if assignment, ok := grouping.LookupVariant(hullKey, string(code)); ok {
+					displayName = strings.TrimSpace(assignment.DisplayVariantCode)
+				}
+				if displayName != "" {
+					builder.Name = displayName
+				} else {
+					builder.Name = strings.TrimSpace(strings.ToUpper(string(code)))
+				}
+				if builder.Name == "" {
+					builder.Name = "BASE"
+				}
+			}
 		}
 	}
 	if builder.Name == "" {
@@ -724,6 +784,193 @@ func canonicalVariantID(hullKey string, code lib.CanonicalVariantCode) string {
 		canonical = "BASE"
 	}
 	return hull + "_" + strings.ToUpper(canonical)
+}
+
+type uexVehicle struct {
+	ID          int    `json:"id"`
+	Slug        string `json:"slug"`
+	Name        string `json:"name"`
+	NameFull    string `json:"name_full"`
+	CompanyName string `json:"company_name"`
+}
+
+type uexVehicleResponse struct {
+	Data []uexVehicle `json:"data"`
+}
+
+func fetchUEXVehicles(ctx context.Context, url string) ([]uexVehicle, error) {
+	if strings.TrimSpace(url) == "" {
+		url = "https://api.uexcorp.uk/2.0/vehicles"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status %s", resp.Status)
+	}
+
+	var payload uexVehicleResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, err
+	}
+	return payload.Data, nil
+}
+
+func normalizeUEXLookupKey(value string) string {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	if value == "" {
+		return ""
+	}
+	buf := strings.Builder{}
+	for _, r := range value {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			buf.WriteRune(r)
+		case r >= '0' && r <= '9':
+			buf.WriteRune(r)
+		}
+	}
+	return buf.String()
+}
+
+func stripMkSuffix(key string) string {
+	if key == "" {
+		return ""
+	}
+	for {
+		idx := strings.LastIndex(key, "MK")
+		if idx <= 0 || idx+2 >= len(key) {
+			return key
+		}
+		suffix := key[idx+2:]
+		if suffix == "" {
+			return key
+		}
+		valid := true
+		for _, r := range suffix {
+			if r == 'I' || r == 'V' || r == 'X' || (r >= '0' && r <= '9') {
+				continue
+			}
+			valid = false
+			break
+		}
+		if !valid {
+			return key
+		}
+		key = key[:idx]
+	}
+}
+
+func vehicleLookupKeys(vehicle uexVehicle) []string {
+	keys := map[string]struct{}{}
+	add := func(value string) {
+		if key := normalizeUEXLookupKey(value); key != "" {
+			keys[key] = struct{}{}
+			if trimmed := stripMkSuffix(key); trimmed != "" {
+				keys[trimmed] = struct{}{}
+			}
+		}
+	}
+	add(vehicle.Slug)
+	add(vehicle.Name)
+	add(vehicle.NameFull)
+	if vehicle.CompanyName != "" && vehicle.Name != "" {
+		add(vehicle.CompanyName + " " + vehicle.Name)
+		add(vehicle.CompanyName + " " + vehicle.NameFull)
+	}
+	result := make([]string, 0, len(keys))
+	for key := range keys {
+		result = append(result, key)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func variantLookupKeys(variant *variantBuilder, hulls map[string]*hullBuilder) []string {
+	if variant == nil {
+		return nil
+	}
+	keys := map[string]struct{}{}
+	add := func(value string) {
+		if key := normalizeUEXLookupKey(value); key != "" {
+			keys[key] = struct{}{}
+			if trimmed := stripMkSuffix(key); trimmed != "" {
+				keys[trimmed] = struct{}{}
+			}
+		}
+	}
+
+	hullName := variant.HullKey
+	if hb := hulls[variant.HullKey]; hb != nil && strings.TrimSpace(hb.Name) != "" {
+		hullName = hb.Name
+	}
+	hullCode := variant.HullKey
+	add(variant.Name)
+	add(hullName)
+	if strings.TrimSpace(variant.VariantCode) != "" {
+		add(variant.VariantCode)
+		add(hullName + " " + variant.VariantCode)
+		add(variant.VariantCode + " " + hullName)
+		add(variant.VariantCode + " " + hullCode)
+	}
+	add(variant.ExternalID)
+	if hb := hulls[variant.HullKey]; hb != nil {
+		if hb.CompanyCode != "" && strings.TrimSpace(variant.VariantCode) != "" {
+			add(hb.CompanyCode + " " + variant.VariantCode + " " + hullName)
+		}
+	}
+
+	result := make([]string, 0, len(keys))
+	for key := range keys {
+		result = append(result, key)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func mergeUEXExternalRefs(ctx context.Context, hullBuilders map[string]*hullBuilder, variantBuilders map[string]*variantBuilder) {
+	vehicles, err := fetchUEXVehicles(ctx, "")
+	if err != nil {
+		utils.Logger().Warn("Failed to fetch UEX vehicles", "error", err)
+		return
+	}
+	index := map[string]uexVehicle{}
+	for _, vehicle := range vehicles {
+		if vehicle.ID <= 0 {
+			continue
+		}
+		for _, key := range vehicleLookupKeys(vehicle) {
+			if key == "" {
+				continue
+			}
+			if _, exists := index[key]; !exists {
+				index[key] = vehicle
+			}
+		}
+	}
+
+	matched := 0
+	for _, variant := range variantBuilders {
+		if variant == nil {
+			continue
+		}
+		for _, key := range variantLookupKeys(variant, hullBuilders) {
+			if vehicle, ok := index[key]; ok {
+				variant.Refs.add("UEX", fmt.Sprintf("%d", vehicle.ID))
+				matched++
+				break
+			}
+		}
+	}
+	utils.Logger().Info("UEX external refs merged", "matches", matched, "variants", len(variantBuilders), "vehicles", len(vehicles))
 }
 
 func canonicalizeHullBuilders(builders map[string]*hullBuilder, grouping *ShipGrouping) (map[string]*hullBuilder, map[string]string) {
@@ -1131,7 +1378,7 @@ func collectRawVariantReferences(grouping *ShipGrouping, hullBuilders map[string
 	}
 }
 
-func buildV2Bundle(channel model.Channel, version string, manufacturers []model.NormalizedManufacturer, ships []model.NormalizedShip, variants []model.NormalizedShipVariant, items []model.NormalizedItem, itemStats []model.NormalizedItemStat, hardpoints []model.NormalizedHardpoint, shipStats []model.NormalizedShipStat, grouping *ShipGrouping, rawShips []map[string]any, rawVariants []map[string]any, hardpointsAsCollection bool) model.NormalizedBundleV2 {
+func buildV2Bundle(ctx context.Context, channel model.Channel, version string, manufacturers []model.NormalizedManufacturer, ships []model.NormalizedShip, variants []model.NormalizedShipVariant, items []model.NormalizedItem, itemStats []model.NormalizedItemStat, hardpoints []model.NormalizedHardpoint, shipStats []model.NormalizedShipStat, grouping *ShipGrouping, rawShips []map[string]any, rawVariants []map[string]any, hardpointsAsCollection bool) model.NormalizedBundleV2 {
 	companyMap := map[string]model.NormalizedCompanyV2{}
 	for _, manufacturer := range manufacturers {
 		company := model.NormalizedCompanyV2{
@@ -1264,6 +1511,8 @@ func buildV2Bundle(channel model.Channel, version string, manufacturers []model.
 		hullBuilders = filterHullBuildersByGrouping(hullBuilders, grouping)
 		variantBuilders = filterVariantBuildersByGrouping(variantBuilders, grouping)
 	}
+
+	mergeUEXExternalRefs(ctx, hullBuilders, variantBuilders)
 
 	shipV2 := make([]model.NormalizedShipV2, 0, len(hullBuilders))
 	for key, builder := range hullBuilders {

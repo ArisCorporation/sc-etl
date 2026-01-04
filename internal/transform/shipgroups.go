@@ -13,15 +13,16 @@ import (
 
 // VariantAssignment mirrors the TypeScript structure.
 type VariantAssignment struct {
-	HullKey        string
-	Manufacturer   string
-	Name           string
-	VariantCode    lib.CanonicalVariantCode
-	Names          []string
-	Editions       []string
-	MatchIDs       []string
-	ShipVariantIDs []string
-	Configurations []VariantConfiguration
+	HullKey            string
+	Manufacturer       string
+	Name               string
+	VariantCode        lib.CanonicalVariantCode
+	DisplayVariantCode string
+	Names              []string
+	Editions           []string
+	MatchIDs           []string
+	ShipVariantIDs     []string
+	Configurations     []VariantConfiguration
 }
 
 // VariantConfiguration stores per-hull configuration metadata.
@@ -54,9 +55,10 @@ func emptyShipGrouping() *ShipGrouping {
 
 // HullDefinition describes a hull entry.
 type HullDefinition struct {
-	HullKey      string
-	Manufacturer string
-	Name         string
+	HullKey            string
+	Manufacturer       string
+	Name               string
+	CombineVariantCode bool
 }
 
 // LoadShipGrouping loads configuration from schemas/ship-groups.json.
@@ -96,10 +98,15 @@ func LoadShipGrouping() *ShipGrouping {
 		if name == "" {
 			name = hullKey
 		}
+		combineVariant := true
+		if value, ok := rawConfig["combine_variant_code"].(bool); ok {
+			combineVariant = value
+		}
 		hullDef := HullDefinition{
-			HullKey:      hullKey,
-			Manufacturer: manufacturer,
-			Name:         name,
+			HullKey:            hullKey,
+			Manufacturer:       manufacturer,
+			Name:               name,
+			CombineVariantCode: combineVariant,
 		}
 		grouping.hulls[hullKey] = hullDef
 		grouping.perHullVariants[hullKey] = map[string]VariantAssignment{}
@@ -107,17 +114,22 @@ func LoadShipGrouping() *ShipGrouping {
 		rawVariants, _ := rawConfig["variants"].(map[string]any)
 		for rawVariantKey, rawVariantValue := range rawVariants {
 			variantCode := sanitizeVariantCode(rawVariantKey)
+			displayVariantCode := strings.TrimSpace(rawVariantKey)
+			if displayVariantCode == "" {
+				displayVariantCode = string(variantCode)
+			}
 			normalized := normalizeVariant(rawVariantValue)
 			assignment := VariantAssignment{
-				HullKey:        hullDef.HullKey,
-				Manufacturer:   hullDef.Manufacturer,
-				Name:           hullDef.Name,
-				VariantCode:    variantCode,
-				Names:          normalized.Names,
-				Editions:       normalized.Editions,
-				MatchIDs:       normalized.MatchIDs,
-				ShipVariantIDs: normalized.ShipVariantIDs,
-				Configurations: normalized.Configurations,
+				HullKey:            hullDef.HullKey,
+				Manufacturer:       hullDef.Manufacturer,
+				Name:               hullDef.Name,
+				VariantCode:        variantCode,
+				DisplayVariantCode: displayVariantCode,
+				Names:              normalized.Names,
+				Editions:           normalized.Editions,
+				MatchIDs:           normalized.MatchIDs,
+				ShipVariantIDs:     normalized.ShipVariantIDs,
+				Configurations:     normalized.Configurations,
 			}
 			grouping.registerVariant(hullKey, assignment, normalized)
 		}

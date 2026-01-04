@@ -43,16 +43,8 @@ func newBuilder(ctx context.Context, client *directus.Client, result *transform.
 	if opts.PromoteVersions != nil {
 		promoteEnabled = *opts.PromoteVersions
 	}
-	itemTypes := opts.AllowedItemTypes
-	if len(itemTypes) == 0 {
-		itemTypes = defaultAllowedItemTypes
-	}
-	itemList, itemSet := normalizeAllowlist(itemTypes)
-	hardpointCategories := opts.AllowedHardpointCategories
-	if len(hardpointCategories) == 0 {
-		hardpointCategories = defaultAllowedHardpointCategories
-	}
-	hpList, hpSet := normalizeAllowlist(hardpointCategories)
+	itemList, itemSet := normalizeAllowlist(opts.AllowedItemTypes)
+	hpList, hpSet := normalizeAllowlist(opts.AllowedHardpointCategories)
 	return &builder{
 		ctx:                          ctx,
 		client:                       client,
