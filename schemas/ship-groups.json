@@ -936,16 +936,24 @@
         "TRIAGE": "RSI_Apollo_Triage"
       }
     },
+    "RSI_HERMES": {
+      "manufacturer": "RSI",
+      "name": "Hermes",
+      "combine_variant_code": true,
+      "variants": {
+        "BASE": "RSI_Hermes"
+      }
+    },
     "RSI_AURORA": {
       "manufacturer": "RSI",
       "name": "Aurora",
       "combine_variant_code": true,
       "variants": {
-        "CL": "RSI_Aurora_CL",
-        "ES": "RSI_Aurora_ES",
-        "LN": "RSI_Aurora_LN",
-        "LX": "RSI_Aurora_LX",
-        "MR": "RSI_Aurora_MR"
+        "CL": "RSI_Aurora_GS_CL",
+        "ES": "RSI_Aurora_GS_ES",
+        "LN": "RSI_Aurora_GS_LN",
+        "LX": "RSI_Aurora_GS_LX",
+        "MR": "RSI_Aurora_GS_MR"
       }
     },
     "RSI_CONSTELLATION": {

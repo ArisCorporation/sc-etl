@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -973,6 +974,100 @@ func mergeUEXExternalRefs(ctx context.Context, hullBuilders map[string]*hullBuil
 	utils.Logger().Info("UEX external refs merged", "matches", matched, "variants", len(variantBuilders), "vehicles", len(vehicles))
 }
 
+type rsiMatrixEntry struct {
+	ID           int    `json:"id"`
+	Name         string `json:"name"`
+	URL          string `json:"url"`
+	Manufacturer struct {
+		Code string `json:"code"`
+		Name string `json:"name"`
+	} `json:"manufacturer"`
+}
+
+type rsiMatrixPayload struct {
+	Data []rsiMatrixEntry `json:"data"`
+}
+
+func loadRSIMatrix() ([]rsiMatrixEntry, error) {
+	bytes, err := os.ReadFile("matrix.json")
+	if err != nil {
+		return nil, err
+	}
+	var payload rsiMatrixPayload
+	if err := json.Unmarshal(bytes, &payload); err != nil {
+		return nil, err
+	}
+	return payload.Data, nil
+}
+
+func rsiLookupKeys(entry rsiMatrixEntry) []string {
+	keys := map[string]struct{}{}
+	add := func(value string) {
+		if key := normalizeUEXLookupKey(value); key != "" {
+			keys[key] = struct{}{}
+			if trimmed := stripMkSuffix(key); trimmed != "" {
+				keys[trimmed] = struct{}{}
+			}
+		}
+	}
+	add(entry.Name)
+	add(entry.Manufacturer.Code + " " + entry.Name)
+	add(entry.Manufacturer.Name + " " + entry.Name)
+
+	slug := strings.TrimSpace(entry.URL)
+	if slug != "" {
+		parts := strings.Split(strings.Trim(slug, "/"), "/")
+		if len(parts) > 0 {
+			last := parts[len(parts)-1]
+			last = strings.ReplaceAll(last, "-", " ")
+			add(last)
+			add(entry.Manufacturer.Code + " " + last)
+		}
+	}
+	result := make([]string, 0, len(keys))
+	for key := range keys {
+		result = append(result, key)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func mergeRSIExternalRefs(hullBuilders map[string]*hullBuilder, variantBuilders map[string]*variantBuilder) {
+	rows, err := loadRSIMatrix()
+	if err != nil {
+		utils.Logger().Warn("Failed to load RSI matrix", "error", err)
+		return
+	}
+	index := map[string]rsiMatrixEntry{}
+	for _, entry := range rows {
+		if entry.ID <= 0 {
+			continue
+		}
+		for _, key := range rsiLookupKeys(entry) {
+			if key == "" {
+				continue
+			}
+			if _, exists := index[key]; !exists {
+				index[key] = entry
+			}
+		}
+	}
+	matched := 0
+	for _, variant := range variantBuilders {
+		if variant == nil {
+			continue
+		}
+		for _, key := range variantLookupKeys(variant, hullBuilders) {
+			if entry, ok := index[key]; ok {
+				variant.Refs.add("RSI", fmt.Sprintf("%d", entry.ID))
+				matched++
+				break
+			}
+		}
+	}
+	utils.Logger().Info("RSI external refs merged", "matches", matched, "variants", len(variantBuilders), "matrix_rows", len(rows))
+}
+
 func canonicalizeHullBuilders(builders map[string]*hullBuilder, grouping *ShipGrouping) (map[string]*hullBuilder, map[string]string) {
 	if len(builders) == 0 {
 		return builders, map[string]string{}
@@ -1398,10 +1493,48 @@ func buildV2Bundle(ctx context.Context, channel model.Channel, version string, m
 		return companies[i].Code < companies[j].Code
 	})
 
+	shipSizes := map[string]string{}
+	for _, ship := range ships {
+		if ship.Size == nil {
+			continue
+		}
+		size := strings.TrimSpace(*ship.Size)
+		if size == "" {
+			continue
+		}
+		hullKey := strings.ToUpper(strings.TrimSpace(ship.ExternalID))
+		if hullKey == "" {
+			continue
+		}
+		shipSizes[hullKey] = size
+	}
+
+	variantSizes := map[string]string{}
+	for _, variant := range variants {
+		variantKey := strings.ToUpper(strings.TrimSpace(variant.ExternalID))
+		hullKey := strings.ToUpper(strings.TrimSpace(variant.ShipExternalID))
+		if variantKey == "" || hullKey == "" {
+			continue
+		}
+		if size, ok := shipSizes[hullKey]; ok && size != "" {
+			variantSizes[variantKey] = size
+		}
+	}
+
 	shipStatsMap := map[string]model.ShipVariantStatsV2{}
 	for _, stat := range shipStats {
+		raw := cloneAnyMap(stat.Stats)
+		if raw == nil {
+			raw = map[string]any{}
+		}
+		variantKey := strings.ToUpper(strings.TrimSpace(stat.ShipVariantExternalID))
+		if size, ok := variantSizes[variantKey]; ok && size != "" {
+			if _, exists := raw["size"]; !exists {
+				raw["size"] = size
+			}
+		}
 		shipStatsMap[stat.ShipVariantExternalID] = model.ShipVariantStatsV2{
-			Raw: stat.Stats,
+			Raw: raw,
 		}
 	}
 
@@ -1506,6 +1639,24 @@ func buildV2Bundle(ctx context.Context, channel model.Channel, version string, m
 
 	var hullAliases map[string]string
 	hullBuilders, hullAliases = canonicalizeHullBuilders(hullBuilders, grouping)
+
+	if len(variantSizes) > 0 && len(hullAliases) > 0 {
+		normalized := map[string]string{}
+		for key, size := range variantSizes {
+			normalized[strings.ToUpper(key)] = size
+			parts := strings.SplitN(strings.ToUpper(key), "_", 2)
+			if len(parts) == 2 {
+				if canonical, ok := hullAliases[parts[0]]; ok && canonical != "" {
+					newKey := canonical + "_" + parts[1]
+					if _, exists := normalized[newKey]; !exists {
+						normalized[newKey] = size
+					}
+				}
+			}
+		}
+		variantSizes = normalized
+	}
+
 	variantBuilders = canonicalizeVariantBuilders(variantBuilders, grouping, hullBuilders, hullAliases)
 	if grouping != nil {
 		hullBuilders = filterHullBuildersByGrouping(hullBuilders, grouping)
@@ -1513,6 +1664,7 @@ func buildV2Bundle(ctx context.Context, channel model.Channel, version string, m
 	}
 
 	mergeUEXExternalRefs(ctx, hullBuilders, variantBuilders)
+	mergeRSIExternalRefs(hullBuilders, variantBuilders)
 
 	shipV2 := make([]model.NormalizedShipV2, 0, len(hullBuilders))
 	for key, builder := range hullBuilders {
@@ -1558,6 +1710,14 @@ func buildV2Bundle(ctx context.Context, channel model.Channel, version string, m
 		stats := builder.Stats
 		if stat, ok := shipStatsMap[key]; ok {
 			stats = stat
+		}
+		if size, ok := variantSizes[key]; ok && size != "" {
+			if stats.Raw == nil {
+				stats.Raw = map[string]any{}
+			}
+			if _, exists := stats.Raw["size"]; !exists {
+				stats.Raw["size"] = size
+			}
 		}
 		if !hardpointsAsCollection {
 			if bucket, ok := hardpointsByVariant[key]; ok && len(bucket) > 0 {
