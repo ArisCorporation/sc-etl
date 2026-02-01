@@ -989,12 +989,32 @@ type rsiMatrixPayload struct {
 }
 
 func loadRSIMatrix() ([]rsiMatrixEntry, error) {
+	if rows, err := fetchRSIMatrixRemote(); err == nil && len(rows) > 0 {
+		return rows, nil
+	}
 	bytes, err := os.ReadFile("matrix.json")
 	if err != nil {
 		return nil, err
 	}
 	var payload rsiMatrixPayload
 	if err := json.Unmarshal(bytes, &payload); err != nil {
+		return nil, err
+	}
+	return payload.Data, nil
+}
+
+func fetchRSIMatrixRemote() ([]rsiMatrixEntry, error) {
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Get("https://robertsspaceindustries.com/ship-matrix/index")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status %s", resp.Status)
+	}
+	var payload rsiMatrixPayload
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return nil, err
 	}
 	return payload.Data, nil

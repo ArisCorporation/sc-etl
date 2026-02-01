@@ -56,31 +56,39 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 		if statsPayload == nil {
 			statsPayload = map[string]any{}
 		}
-		variantCode := ""
-		if variant.VariantCode != nil {
-			variantCode = *variant.VariantCode
+		variantCode := preferString(strings.TrimSpace(preferPtrString(variant.VariantCode, "")), "BASE")
+		composite := variantCompositeKey(hullID, variantCode)
+
+		externalRefs := ensurePrimaryExternalRef(variant.ExternalRefs, external)
+		state := lookupVariantState(composite, externalRefs, byComposite, byRef)
+
+		name := preferString(variant.Name, "")
+		if state != nil {
+			name = preferString(name, state.Snapshot.Name)
+			variantCode = preferString(variantCode, state.Snapshot.VariantCode)
+			externalRefs = preferExternalRefs(externalRefs, state.Snapshot.ExternalRefs)
+			statsPayload = preferMap(statsPayload, state.Snapshot.Stats)
 		}
-		variantCode = strings.TrimSpace(variantCode)
-		if variantCode == "" {
-			variantCode = "BASE"
-		}
-		thumbnail := ""
-		if variant.Thumbnail != nil {
-			thumbnail = strings.TrimSpace(*variant.Thumbnail)
-		}
-		releasePatch := ""
-		if variant.ReleasePatch != nil {
-			releasePatch = strings.TrimSpace(*variant.ReleasePatch)
-		}
-		name := variant.Name
 		if strings.TrimSpace(name) == "" {
 			name = variant.ExternalID
 		}
+		composite = variantCompositeKey(hullID, variantCode)
+
+		thumbnail := preferPtrString(variant.Thumbnail, "")
+		if state != nil {
+			thumbnail = preferString(thumbnail, state.Snapshot.Thumbnail)
+		}
+
+		releasePatch := preferPtrString(variant.ReleasePatch, "")
+		if state != nil {
+			releasePatch = preferString(releasePatch, state.Snapshot.ReleasePatch)
+		}
+
 		snapshot := variantSnapshot{
 			HullID:       hullID,
 			Name:         name,
 			VariantCode:  variantCode,
-			ExternalRefs: ensurePrimaryExternalRef(variant.ExternalRefs, external),
+			ExternalRefs: externalRefs,
 			Stats:        statsPayload,
 			Thumbnail:    thumbnail,
 			ReleasePatch: releasePatch,
@@ -97,8 +105,9 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 			"status":        "published",
 		}
 
-		composite := variantCompositeKey(snapshot.HullID, snapshot.VariantCode)
-		state := lookupVariantState(composite, snapshot.ExternalRefs, byComposite, byRef)
+		if state == nil {
+			state = lookupVariantState(composite, snapshot.ExternalRefs, byComposite, byRef)
+		}
 
 		if state != nil {
 			diffPayload := diff.Compute(variantSnapshotMap(state.Snapshot), variantSnapshotMap(snapshot), []string{"hull", "name", "variant_code", "external_refs", "stats", "thumbnail", "release_patch"})

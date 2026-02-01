@@ -78,8 +78,13 @@ func (b *builder) syncShips(grouping *transform.ShipGrouping, resolveCompanyID f
 		state := lookupShipState(composite, snapshot.ExternalRefs, byComposite, byRef)
 
 		if state != nil {
-			// Preserve paints that may have been manually curated in Directus.
-			snapshot.Paints = append([]string(nil), state.Snapshot.Paints...)
+			snapshot.Name = preferString(snapshot.Name, state.Snapshot.Name)
+			snapshot.Manufacturer = preferString(snapshot.Manufacturer, state.Snapshot.Manufacturer)
+			snapshot.ExternalRefs = preferExternalRefs(snapshot.ExternalRefs, state.Snapshot.ExternalRefs)
+			snapshot.Paints = preferStrings(snapshot.Paints, state.Snapshot.Paints)
+			payload["name"] = snapshot.Name
+			payload["manufacturer"] = nullableString(snapshot.Manufacturer)
+			payload["external_refs"] = snapshot.ExternalRefs
 			payload["paints"] = snapshot.Paints
 		}
 
