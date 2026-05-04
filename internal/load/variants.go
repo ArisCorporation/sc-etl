@@ -6,6 +6,7 @@ import (
 
 	"github.com/ArisCorporation/sc-goetl/internal/diff"
 	"github.com/ArisCorporation/sc-goetl/internal/model"
+	"github.com/ArisCorporation/sc-goetl/internal/utils"
 )
 
 type variantSnapshot struct {
@@ -15,6 +16,7 @@ type variantSnapshot struct {
 	ExternalRefs []model.NormalizedExternalReference
 	Stats        map[string]any
 	Thumbnail    string
+	ThumbnailURL string
 	ReleasePatch string
 }
 
@@ -27,11 +29,12 @@ type variantState struct {
 }
 
 func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, stats map[string]map[string]any, hullIDs map[string]string, versionName string, promote bool) (map[string]string, error) {
-	fields := []string{"id", "hull", "hull.id", "name", "variant_code", "external_refs", "stats", "thumbnail", "release_patch"}
+	fields := []string{"id", "hull", "hull.id", "name", "variant_code", "external_refs", "stats", "thumbnail", "thumbnail.id", "thumbnail.description", "release_patch"}
 	rows, err := fetchAllRows(b.ctx, b.client, b.collections.ShipVariants, fields, nil)
 	if err != nil {
 		return nil, err
 	}
+	b.ensureRSIMedia()
 	byComposite := map[string]*variantState{}
 	byRef := map[string]*variantState{}
 	byID := map[string]*variantState{}
@@ -74,9 +77,34 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 		}
 		composite = variantCompositeKey(hullID, variantCode)
 
-		thumbnail := preferPtrString(variant.Thumbnail, "")
+		thumbnail := ""
+		thumbnailURL := ""
 		if state != nil {
-			thumbnail = preferString(thumbnail, state.Snapshot.Thumbnail)
+			thumbnail = state.Snapshot.Thumbnail
+			thumbnailURL = state.Snapshot.ThumbnailURL
+		}
+		if thumbnail == "" {
+			thumbnail = preferPtrString(variant.Thumbnail, "")
+		}
+
+		if rsiID := extractRSIID(externalRefs); rsiID != "" {
+			if media, ok := b.rsiMedia[rsiID]; ok && media.Thumbnail != "" && (thumbnail == "" || thumbnailURL != media.Thumbnail) {
+				if fileID, err := b.importFile(media.Thumbnail); err != nil {
+					utils.Logger().Warn("Failed to import RSI thumbnail", "variant", variant.ExternalID, "url", media.Thumbnail, "error", err)
+				} else if fileID != "" {
+					thumbnail = fileID
+					thumbnailURL = media.Thumbnail
+				}
+			}
+			if media, ok := b.rsiMedia[rsiID]; ok {
+				if len(media.Gallery) > 0 || media.Store != "" {
+					hID := hullID
+					if hID == "" && state != nil {
+						hID = state.Snapshot.HullID
+					}
+					b.maybeAttachHullMedia(hID, media)
+				}
+			}
 		}
 
 		releasePatch := preferPtrString(variant.ReleasePatch, "")
@@ -91,6 +119,7 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 			ExternalRefs: externalRefs,
 			Stats:        statsPayload,
 			Thumbnail:    thumbnail,
+			ThumbnailURL: thumbnailURL,
 			ReleasePatch: releasePatch,
 		}
 
@@ -148,19 +177,15 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 		byID[newState.ID] = newState
 	}
 
-	var toDelete []string
-	for id, state := range byID {
+	staleCount := 0
+	for _, state := range byID {
 		if !state.Matched {
-			toDelete = append(toDelete, id)
+			staleCount++
 		}
 	}
 
-	if len(toDelete) > 0 {
-		for _, batch := range chunkStrings(toDelete, 100) {
-			if err := b.client.DeleteMany(b.ctx, b.collections.ShipVariants, batch); err != nil {
-				return nil, fmt.Errorf("delete ship variants: %w", err)
-			}
-		}
+	if staleCount > 0 {
+		utils.Logger().Info("Retaining unmatched ship variants", "count", staleCount)
 	}
 
 	return variantIDs, nil
@@ -175,7 +200,12 @@ func makeVariantSnapshotFromRow(row map[string]any) variantSnapshot {
 	if payload, ok := row["stats"].(map[string]any); ok {
 		stats = payload
 	}
-	thumbnail := normalizeString(row["thumbnail"])
+	thumbnailField := row["thumbnail"]
+	thumbnail := extractID(thumbnailField)
+	thumbnailURL := normalizeString(extractMediaFileState(thumbnailField).Description)
+	if strings.HasPrefix(thumbnailURL, "RSI matrix source: ") {
+		thumbnailURL = strings.TrimPrefix(thumbnailURL, "RSI matrix source: ")
+	}
 	release := normalizeString(row["release_patch"])
 	return variantSnapshot{
 		HullID:       hullID,
@@ -184,6 +214,7 @@ func makeVariantSnapshotFromRow(row map[string]any) variantSnapshot {
 		ExternalRefs: refs,
 		Stats:        stats,
 		Thumbnail:    thumbnail,
+		ThumbnailURL: thumbnailURL,
 		ReleasePatch: release,
 	}
 }

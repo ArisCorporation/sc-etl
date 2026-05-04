@@ -132,6 +132,10 @@ func Run(ctx context.Context, dataRoot string, channel model.Channel, version st
 		}
 	}
 
+	if len(config.AllowedHardpointTypes) > 0 && len(hardpoints) > 0 {
+		hardpoints = filterAllowedHardpoints(hardpoints, config.AllowedHardpointTypes)
+	}
+
 	legacy := model.NormalizedDataBundle{
 		Manufacturers:  manufacturers,
 		Ships:          ships,
@@ -1020,69 +1024,21 @@ func fetchRSIMatrixRemote() ([]rsiMatrixEntry, error) {
 	return payload.Data, nil
 }
 
-func rsiLookupKeys(entry rsiMatrixEntry) []string {
-	keys := map[string]struct{}{}
-	add := func(value string) {
-		if key := normalizeUEXLookupKey(value); key != "" {
-			keys[key] = struct{}{}
-			if trimmed := stripMkSuffix(key); trimmed != "" {
-				keys[trimmed] = struct{}{}
-			}
-		}
-	}
-	add(entry.Name)
-	add(entry.Manufacturer.Code + " " + entry.Name)
-	add(entry.Manufacturer.Name + " " + entry.Name)
-
-	slug := strings.TrimSpace(entry.URL)
-	if slug != "" {
-		parts := strings.Split(strings.Trim(slug, "/"), "/")
-		if len(parts) > 0 {
-			last := parts[len(parts)-1]
-			last = strings.ReplaceAll(last, "-", " ")
-			add(last)
-			add(entry.Manufacturer.Code + " " + last)
-		}
-	}
-	result := make([]string, 0, len(keys))
-	for key := range keys {
-		result = append(result, key)
-	}
-	sort.Strings(result)
-	return result
-}
-
 func mergeRSIExternalRefs(hullBuilders map[string]*hullBuilder, variantBuilders map[string]*variantBuilder) {
 	rows, err := loadRSIMatrix()
 	if err != nil {
 		utils.Logger().Warn("Failed to load RSI matrix", "error", err)
 		return
 	}
-	index := map[string]rsiMatrixEntry{}
-	for _, entry := range rows {
-		if entry.ID <= 0 {
-			continue
-		}
-		for _, key := range rsiLookupKeys(entry) {
-			if key == "" {
-				continue
-			}
-			if _, exists := index[key]; !exists {
-				index[key] = entry
-			}
-		}
-	}
+	matchers := buildRSIMatrixMatchers(rows)
 	matched := 0
 	for _, variant := range variantBuilders {
 		if variant == nil {
 			continue
 		}
-		for _, key := range variantLookupKeys(variant, hullBuilders) {
-			if entry, ok := index[key]; ok {
-				variant.Refs.add("RSI", fmt.Sprintf("%d", entry.ID))
-				matched++
-				break
-			}
+		if entry, ok := matchRSIMatrixEntry(variant, hullBuilders, matchers); ok {
+			variant.Refs.add("RSI", fmt.Sprintf("%d", entry.ID))
+			matched++
 		}
 	}
 	utils.Logger().Info("RSI external refs merged", "matches", matched, "variants", len(variantBuilders), "matrix_rows", len(rows))

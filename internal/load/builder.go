@@ -26,12 +26,19 @@ type builder struct {
 	allowedItemTypes             map[string]struct{}
 	allowedHardpointCategoryList []string
 	allowedHardpointCategories   map[string]struct{}
+	skipMediaUpload              bool
 
 	statsCompanies  int
 	statsShips      int
 	statsVariants   int
 	statsItems      int
 	statsHardpoints int
+
+	rsiMedia                map[string]rsiMedia
+	fieldExistsCache        map[string]map[string]bool
+	fileImportCache         map[string]string
+	hullMediaCache          map[string]hullMediaState
+	pendingHardpointDeletes []hardpointDelete
 }
 
 func newBuilder(ctx context.Context, client *directus.Client, result *transform.Result, opts Options) *builder {
@@ -56,6 +63,10 @@ func newBuilder(ctx context.Context, client *directus.Client, result *transform.
 		allowedItemTypes:             itemSet,
 		allowedHardpointCategoryList: hpList,
 		allowedHardpointCategories:   hpSet,
+		skipMediaUpload:              envBool("SKIP_MEDIA_UPLOAD", false),
+		fieldExistsCache:             map[string]map[string]bool{},
+		fileImportCache:              map[string]string{},
+		hullMediaCache:               map[string]hullMediaState{},
 	}
 }
 
@@ -109,6 +120,17 @@ type buildRecord struct {
 	Status     string
 	Hash       string
 	ReleasedAt string
+}
+
+type hullMediaState struct {
+	Loaded  bool
+	Store   mediaFileState
+	Gallery []mediaFileState
+}
+
+type mediaFileState struct {
+	ID          string
+	Description string
 }
 
 func (b *builder) ensureBuild() error {
@@ -176,22 +198,22 @@ func (b *builder) sync() error {
 	}
 	b.statsItems = len(itemIDs)
 
-	if err := b.syncHardpoints(legacyHardpoints, installedByHardpoint, versionName, promoteVersions); err != nil {
+	hardpointIDMap, err := b.syncHardpoints(legacyHardpoints, installedByHardpoint, versionName, promoteVersions)
+	if err != nil {
 		return err
 	}
-	b.statsHardpoints = len(legacyHardpoints)
+	b.statsHardpoints = len(hardpointIDMap)
 
 	configs, err := b.syncShipConfigurations(shipGrouping, b.result.V2.ShipVariants, variantIDs)
 	if err != nil {
 		return err
 	}
 
-	hardpointIDMap, err := fetchHardpointIDMap(b.ctx, b.client, b.collections.Hardpoints)
-	if err != nil {
+	if err := b.syncShipConfigurationHardpoints(configs, b.result.Legacy.InstalledItems, hardpointIDMap, itemIDs); err != nil {
 		return err
 	}
 
-	if err := b.syncShipConfigurationHardpoints(configs, b.result.Legacy.InstalledItems, hardpointIDMap, itemIDs); err != nil {
+	if err := b.cleanupPendingHardpoints(); err != nil {
 		return err
 	}
 
@@ -277,6 +299,196 @@ func truncateString(value string, limit int) string {
 	return value[:limit-3] + "..."
 }
 
+func (b *builder) collectionHasField(collection, field string) bool {
+	collection = strings.TrimSpace(collection)
+	field = strings.TrimSpace(field)
+	if collection == "" || field == "" {
+		return false
+	}
+	if cache, ok := b.fieldExistsCache[collection]; ok {
+		if exists, ok := cache[field]; ok {
+			return exists
+		}
+	}
+	exists, err := b.client.FieldExists(b.ctx, collection, field)
+	if err != nil {
+		return false
+	}
+	if _, ok := b.fieldExistsCache[collection]; !ok {
+		b.fieldExistsCache[collection] = map[string]bool{}
+	}
+	b.fieldExistsCache[collection][field] = exists
+	return exists
+}
+
+func (b *builder) importFile(url string) (string, error) {
+	if b.skipMediaUpload {
+		return "", nil
+	}
+	if strings.TrimSpace(url) == "" {
+		return "", nil
+	}
+	if id, ok := b.fileImportCache[url]; ok {
+		return id, nil
+	}
+	folder := strings.TrimSpace(os.Getenv("DIRECTUS_FILES_FOLDER"))
+	data := map[string]any{}
+	if folder != "" {
+		data["folder"] = folder
+	}
+	if description := rsiMediaDescription(url); description != "" {
+		data["description"] = description
+	}
+	id, err := b.client.ImportFile(b.ctx, url, data)
+	if err != nil {
+		return "", err
+	}
+	b.fileImportCache[url] = id
+	return id, nil
+}
+
+func (b *builder) loadHullMediaState(hullID string) hullMediaState {
+	if state, ok := b.hullMediaCache[hullID]; ok && state.Loaded {
+		return state
+	}
+	collection := b.collections.Ships
+	state := hullMediaState{Loaded: true}
+	if hullID == "" {
+		b.hullMediaCache[hullID] = state
+		return state
+	}
+	fields := []string{"id"}
+	wantStore := b.collectionHasField(collection, "store_image")
+	wantGallery := b.collectionHasField(collection, "gallery")
+	if wantStore {
+		fields = append(fields, "store_image", "store_image.id", "store_image.description")
+	}
+	if wantGallery {
+		fields = append(fields, "gallery", "gallery.id", "gallery.description")
+	}
+	if len(fields) == 1 {
+		b.hullMediaCache[hullID] = state
+		return state
+	}
+	rows, err := fetchAllRows(b.ctx, b.client, collection, fields, map[string]any{"id": map[string]any{"_eq": hullID}})
+	if err != nil || len(rows) == 0 {
+		b.hullMediaCache[hullID] = state
+		return state
+	}
+	row := rows[0]
+	if wantStore {
+		state.Store = extractMediaFileState(row["store_image"])
+	}
+	if wantGallery {
+		state.Gallery = extractMediaFileStates(row["gallery"])
+	}
+	b.hullMediaCache[hullID] = state
+	return state
+}
+
+func (b *builder) maybeAttachHullMedia(hullID string, media rsiMedia) {
+	if hullID == "" {
+		return
+	}
+	collection := b.collections.Ships
+	state := b.loadHullMediaState(hullID)
+	payload := map[string]any{}
+	updated := false
+
+	if strings.TrimSpace(media.Store) != "" && b.collectionHasField(collection, "store_image") && !mediaFileMatchesURL(state.Store, media.Store) {
+		if fileID, err := b.importFile(media.Store); err != nil {
+			utils.Logger().Warn("Failed to import RSI store image", "hull", hullID, "url", media.Store, "error", err)
+		} else if fileID != "" {
+			payload["store_image"] = fileID
+			state.Store = mediaFileState{
+				ID:          fileID,
+				Description: rsiMediaDescription(media.Store),
+			}
+			updated = true
+		}
+	}
+
+	if len(media.Gallery) > 0 && b.collectionHasField(collection, "gallery") && !mediaGalleryMatchesURLs(state.Gallery, media.Gallery) {
+		fileIDs := []string{}
+		nextGallery := make([]mediaFileState, 0, len(media.Gallery))
+		for _, url := range media.Gallery {
+			if fileID, err := b.importFile(url); err != nil {
+				utils.Logger().Warn("Failed to import RSI gallery image", "hull", hullID, "url", url, "error", err)
+				continue
+			} else if fileID != "" {
+				fileIDs = append(fileIDs, fileID)
+				nextGallery = append(nextGallery, mediaFileState{
+					ID:          fileID,
+					Description: rsiMediaDescription(url),
+				})
+			}
+		}
+		if len(fileIDs) > 0 {
+			payload["gallery"] = fileIDs
+			state.Gallery = nextGallery
+			updated = true
+		}
+	}
+
+	if updated {
+		if _, err := b.client.UpdateOne(b.ctx, collection, hullID, payload); err != nil {
+			utils.Logger().Warn("Failed to update hull media", "hull", hullID, "error", err)
+		} else {
+			state.Loaded = true
+			b.hullMediaCache[hullID] = state
+		}
+	}
+}
+
+func extractMediaFileState(value any) mediaFileState {
+	switch v := value.(type) {
+	case map[string]any:
+		return mediaFileState{
+			ID:          extractID(v),
+			Description: normalizeString(v["description"]),
+		}
+	case string:
+		return mediaFileState{ID: normalizeString(v)}
+	default:
+		return mediaFileState{}
+	}
+}
+
+func extractMediaFileStates(value any) []mediaFileState {
+	items, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	result := make([]mediaFileState, 0, len(items))
+	for _, item := range items {
+		state := extractMediaFileState(item)
+		if state.ID == "" && state.Description == "" {
+			continue
+		}
+		result = append(result, state)
+	}
+	return result
+}
+
+func mediaFileMatchesURL(state mediaFileState, url string) bool {
+	if strings.TrimSpace(state.Description) == "" {
+		return false
+	}
+	return state.Description == rsiMediaDescription(url)
+}
+
+func mediaGalleryMatchesURLs(existing []mediaFileState, desired []string) bool {
+	if len(existing) != len(desired) {
+		return false
+	}
+	for i, url := range desired {
+		if !mediaFileMatchesURL(existing[i], url) {
+			return false
+		}
+	}
+	return true
+}
+
 func (b *builder) filterHardpointsList(hardpoints []model.NormalizedHardpointV2) ([]model.NormalizedHardpointV2, int) {
 	if len(b.allowedHardpointCategories) == 0 {
 		copied := make([]model.NormalizedHardpointV2, len(hardpoints))
@@ -323,6 +535,19 @@ func (b *builder) ensureVersionSnapshot(collection, id string, payload map[strin
 		Key:     versionName,
 		Promote: promote,
 	})
+}
+
+func (b *builder) ensureRSIMedia() {
+	if b.rsiMedia != nil {
+		return
+	}
+	media, err := loadRSIMedia(b.ctx)
+	if err != nil {
+		utils.Logger().Warn("Failed to load RSI media", "error", err)
+		b.rsiMedia = map[string]rsiMedia{}
+		return
+	}
+	b.rsiMedia = media
 }
 
 type installedItemAggregate struct {

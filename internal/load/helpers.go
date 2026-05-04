@@ -2,8 +2,11 @@ package load
 
 import (
 	"math"
+	"os"
 	"strconv"
 	"strings"
+
+	"github.com/ArisCorporation/sc-goetl/internal/model"
 )
 
 func normalizeString(value any) string {
@@ -133,4 +136,24 @@ func stringFromPtr(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func envBool(key string, fallback bool) bool {
+	if value, ok := os.LookupEnv(key); ok {
+		if parsed, err := strconv.ParseBool(value); err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func extractRSIID(refs []model.NormalizedExternalReference) string {
+	for _, ref := range refs {
+		if strings.EqualFold(strings.TrimSpace(ref.Source), "RSI") {
+			if id := strings.TrimSpace(ref.ID); id != "" {
+				return id
+			}
+		}
+	}
+	return ""
 }

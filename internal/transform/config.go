@@ -13,6 +13,28 @@ type Config struct {
 	HardpointsAsCollection bool
 }
 
+var defaultAllowedHardpointTypes = []string{
+	"WEAPON", "WEAPONGUN", "WEAPONDEFENSIVE", "WEAPONATTACHMENT", "WEAPONMINING",
+	"TURRET", "TURRETBASE", "MANNEDTURRET", "REMOTETURRET", "UTILITYTURRET",
+	"MISSILE", "MISSILELAUNCHER",
+	"BOMB", "BOMBLAUNCHER",
+	"SHIELD",
+	"COOLER",
+	"POWERPLANT",
+	"QUANTUMDRIVE", "QED", "QUANTUMINTERDICTIONGENERATOR",
+	"THRUSTER", "MAINTHRUSTER", "MANEUVERTHRUSTER", "RETROTHRUSTER", "VTOLTHRUSTER",
+	"FUELTANK", "QUANTUMFUELTANK", "FUELINTAKE",
+	"FLIGHTCONTROLLER",
+	"LIFESUPPORTGENERATOR", "LIFESUPPORTVENT",
+	"RADAR",
+	"DEFENSE",
+	"CARGO", "CARGOGRID",
+	"EMP",
+	"MININGCONTROLLER", "MININGMODIFIER",
+	"SALVAGECONTROLLER", "SALVAGEFIELDEMITTER", "SALVAGEFIELDSUPPORTER", "SALVAGEFILLERSTATION", "SALVAGEHEAD", "SALVAGEINTERNALSTORAGE", "SALVAGEMODIFIER",
+	"UTILITY", "TRACTORBEAM", "TOWINGBEAM", "TOOLARM",
+}
+
 // LoadConfig initialises Config using environment variables with optional overrides.
 func LoadConfig(overrides *Config) Config {
 	allowedItems := parseAllowedTokens(os.Getenv("ALLOWED_ITEM_TYPES"))
@@ -27,6 +49,10 @@ func LoadConfig(overrides *Config) Config {
 			allowedHardpoints = overrides.AllowedHardpointTypes
 		}
 		hardpointsAsCollection = overrides.HardpointsAsCollection
+	}
+
+	if len(allowedHardpoints) == 0 {
+		allowedHardpoints = makeTokenSet(defaultAllowedHardpointTypes)
 	}
 
 	return Config{
@@ -61,6 +87,18 @@ func parseAllowedTokens(raw string) map[string]struct{} {
 		if upper != "" {
 			result[upper] = struct{}{}
 		}
+	}
+	return result
+}
+
+func makeTokenSet(list []string) map[string]struct{} {
+	result := make(map[string]struct{}, len(list))
+	for _, entry := range list {
+		token := strings.ToUpper(strings.TrimSpace(entry))
+		if token == "" {
+			continue
+		}
+		result[token] = struct{}{}
 	}
 	return result
 }

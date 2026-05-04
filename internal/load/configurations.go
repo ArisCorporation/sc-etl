@@ -321,7 +321,14 @@ func fetchHardpointIDMap(ctx context.Context, client *directus.Client, collectio
 		if external == "" {
 			continue
 		}
-		result[external] = toString(row["id"])
+		id := toString(row["id"])
+		if existingID, ok := result[external]; ok {
+			if preferHardpointID(id, existingID) {
+				result[external] = id
+			}
+			continue
+		}
+		result[external] = id
 	}
 	return result, nil
 }

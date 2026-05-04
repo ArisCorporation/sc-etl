@@ -243,6 +243,49 @@ func (c *Client) UpdateMany(ctx context.Context, collection string, items []map[
 	return result.Data, nil
 }
 
+// FieldExists checks whether a field is defined for a collection.
+func (c *Client) FieldExists(ctx context.Context, collection, field string) (bool, error) {
+	req, err := c.buildRequest(ctx, http.MethodGet, []string{"fields", collection, field}, nil, nil)
+	if err != nil {
+		return false, err
+	}
+	err = c.do(req, nil)
+	if err == nil {
+		return true, nil
+	}
+	var reqErr *RequestError
+	if errors.As(err, &reqErr) && reqErr.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+	return false, err
+}
+
+// ImportFile downloads a remote asset into Directus via /files/import and returns the created file id.
+func (c *Client) ImportFile(ctx context.Context, fileURL string, data map[string]any) (string, error) {
+	if strings.TrimSpace(fileURL) == "" {
+		return "", errors.New("file url missing")
+	}
+	payload := map[string]any{"url": fileURL}
+	if len(data) > 0 {
+		payload["data"] = data
+	}
+	req, err := c.buildRequest(ctx, http.MethodPost, []string{"files", "import"}, nil, payload)
+	if err != nil {
+		return "", err
+	}
+	var resp struct {
+		Data map[string]any `json:"data"`
+	}
+	if err := c.do(req, &resp); err != nil {
+		return "", err
+	}
+	id := normalizeID(resp.Data["id"])
+	if id == "" {
+		return "", errors.New("directus file import response missing id")
+	}
+	return id, nil
+}
+
 // UpdateOne patches a single record.
 func (c *Client) UpdateOne(ctx context.Context, collection string, key string, item map[string]any) (map[string]any, error) {
 	req, err := c.buildRequest(ctx, http.MethodPatch, []string{"items", collection, key}, nil, item)

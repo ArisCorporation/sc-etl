@@ -8,6 +8,7 @@ import (
 	"github.com/ArisCorporation/sc-goetl/internal/diff"
 	"github.com/ArisCorporation/sc-goetl/internal/model"
 	"github.com/ArisCorporation/sc-goetl/internal/transform"
+	"github.com/ArisCorporation/sc-goetl/internal/utils"
 )
 
 type shipSnapshot struct {
@@ -127,19 +128,15 @@ func (b *builder) syncShips(grouping *transform.ShipGrouping, resolveCompanyID f
 		byID[newState.ID] = newState
 	}
 
-	var toDelete []string
-	for id, state := range byID {
+	staleCount := 0
+	for _, state := range byID {
 		if !state.Matched {
-			toDelete = append(toDelete, id)
+			staleCount++
 		}
 	}
 
-	if len(toDelete) > 0 {
-		for _, batch := range chunkStrings(toDelete, 100) {
-			if err := b.client.DeleteMany(b.ctx, b.collections.Ships, batch); err != nil {
-				return nil, fmt.Errorf("delete ships: %w", err)
-			}
-		}
+	if staleCount > 0 {
+		utils.Logger().Info("Retaining unmatched ship hulls", "count", staleCount)
 	}
 
 	return shipIDByExternal, nil
