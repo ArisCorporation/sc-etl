@@ -272,12 +272,17 @@ func titleCase(input string) string {
 	if input == "" {
 		return ""
 	}
-	parts := strings.Fields(strings.ToLower(input))
+	parts := strings.Fields(input)
 	for i, part := range parts {
 		if part == "" {
 			continue
 		}
-		parts[i] = strings.ToUpper(string(part[0])) + part[1:]
+		// Preserve all-uppercase words (acronyms/abbreviations like "MK", "II")
+		if len(part) > 1 && part == strings.ToUpper(part) {
+			continue
+		}
+		lower := strings.ToLower(part)
+		parts[i] = strings.ToUpper(lower[:1]) + lower[1:]
 	}
 	return strings.Join(parts, " ")
 }
@@ -490,5 +495,5 @@ func CanonicalVariantName(baseName string, variantCode CanonicalVariantCode) str
 	if sanitizeToken(variantCode) == "BASE" || variantCode == "" {
 		return titleCase(baseName)
 	}
-	return titleCase(baseName) + " " + sanitizeToken(variantCode)
+	return titleCase(baseName) + " " + titleCase(string(variantCode))
 }

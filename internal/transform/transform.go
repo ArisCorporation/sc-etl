@@ -754,7 +754,13 @@ func ensureVariantBuilder(builders map[string]*variantBuilder, grouping *ShipGro
 				if strings.EqualFold(string(code), "BASE") {
 					builder.Name = lib.CanonicalVariantName(hull.Name, "BASE")
 				} else {
-					builder.Name = lib.CanonicalVariantName(hull.Name, code)
+					codeForDisplay := code
+					if assignment, ok := grouping.LookupVariant(hullKey, string(code)); ok {
+						if d := strings.TrimSpace(assignment.DisplayVariantCode); d != "" {
+							codeForDisplay = lib.CanonicalVariantCode(d)
+						}
+					}
+					builder.Name = lib.CanonicalVariantName(hull.Name, codeForDisplay)
 				}
 			} else {
 				displayName := ""
