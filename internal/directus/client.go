@@ -76,8 +76,14 @@ func NewClient(baseURL, token string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse directus url: %w", err)
 	}
+	requestTimeout := 120 * time.Second
+	if raw := strings.TrimSpace(os.Getenv("DIRECTUS_REQUEST_TIMEOUT")); raw != "" {
+		if secs, err := strconv.Atoi(raw); err == nil && secs > 0 {
+			requestTimeout = time.Duration(secs) * time.Second
+		}
+	}
 	httpClient := &http.Client{
-		Timeout: 60 * time.Second,
+		Timeout: requestTimeout,
 	}
 	return &Client{
 		BaseURL:    parsed,
@@ -151,6 +157,9 @@ func (c *Client) do(req *http.Request, dest any) error {
 }
 
 func isTransientRequestError(err error) bool {
+	if err == nil {
+		return false
+	}
 	var reqErr *RequestError
 	if errors.As(err, &reqErr) {
 		if reqErr.StatusCode == 0 {
@@ -159,6 +168,15 @@ func isTransientRequestError(err error) bool {
 		if reqErr.StatusCode >= http.StatusInternalServerError {
 			return true
 		}
+		return false
+	}
+	// Network-level errors (timeout, connection reset, EOF) are transient.
+	var netErr interface{ Timeout() bool }
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
 	}
 	return false
 }

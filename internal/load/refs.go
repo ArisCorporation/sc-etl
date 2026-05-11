@@ -65,6 +65,20 @@ func buildRefKeys(refs []model.NormalizedExternalReference) []string {
 	return keys
 }
 
+// buildVariantRefKeys builds ref keys for ship variant matching, excluding
+// vehicle-level sources (UEX) that are shared across all variants of the
+// same ship family and would cause false positive matches.
+func buildVariantRefKeys(refs []model.NormalizedExternalReference) []string {
+	keys := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if strings.EqualFold(ref.Source, "UEX") {
+			continue
+		}
+		keys = append(keys, strings.ToUpper(ref.Source+":"+ref.ID))
+	}
+	return keys
+}
+
 func uniqueRefs(refs []model.NormalizedExternalReference) []model.NormalizedExternalReference {
 	if len(refs) == 0 {
 		return []model.NormalizedExternalReference{}

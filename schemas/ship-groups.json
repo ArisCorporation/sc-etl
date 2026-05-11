@@ -1021,7 +1021,7 @@
     },
     "RSI_AURORA_MKII": {
       "manufacturer": "RSI",
-      "name": "Aurora",
+      "name": "Aurora MK II",
       "combine_variant_code": true,
       "variants": {
         "BASE": "RSI_Aurora_Mk2"

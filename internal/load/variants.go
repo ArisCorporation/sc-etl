@@ -236,7 +236,7 @@ func makeVariantState(id string, snapshot variantSnapshot) *variantState {
 		ID:        id,
 		Snapshot:  snapshot,
 		Composite: variantCompositeKey(snapshot.HullID, snapshot.VariantCode),
-		RefKeys:   buildRefKeys(snapshot.ExternalRefs),
+		RefKeys:   buildVariantRefKeys(snapshot.ExternalRefs),
 		Matched:   false,
 	}
 }
@@ -275,7 +275,7 @@ func lookupVariantState(composite string, refs []model.NormalizedExternalReferen
 			return state
 		}
 	}
-	keys := buildRefKeys(refs)
+	keys := buildVariantRefKeys(refs)
 	for _, key := range keys {
 		if state, ok := byRef[key]; ok {
 			return state
