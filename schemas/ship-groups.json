@@ -203,14 +203,35 @@
           }
         },
         "F7C Wildfire": "ANVL_Hornet_F7C_Wildfire",
-        "F7CM": "ANVL_Hornet_F7CM",
+        "F7CM": {
+          "match": "ANVL_Hornet_F7CM",
+          "display": "F7CM Super Hornet"
+        },
         "F7CM Heartseeker": "ANVL_Hornet_F7CM_Heartseeker",
-        "F7CM MK2": "ANVL_Hornet_F7CM_Mk2",
-        "F7CM MK2 Heartseeker": "ANVL_Hornet_F7CM_Mk2_Heartseeker",
-        "F7CR": "ANVL_Hornet_F7CR",
-        "F7CR MK2": "ANVL_Hornet_F7CR_Mk2",
-        "F7CS": "ANVL_Hornet_F7CS",
-        "F7CS MK2": "ANVL_Hornet_F7CS_Mk2"
+        "F7CM MK2": {
+          "match": "ANVL_Hornet_F7CM_Mk2",
+          "display": "F7CM Super Hornet MK2"
+        },
+        "F7CM MK2 Heartseeker": {
+          "match": "ANVL_Hornet_F7CM_Mk2_Heartseeker",
+          "display": "F7CM Heartseeker MK2"
+        },
+        "F7CR": {
+          "match": "ANVL_Hornet_F7CR",
+          "display": "F7CR Tracker"
+        },
+        "F7CR MK2": {
+          "match": "ANVL_Hornet_F7CR_Mk2",
+          "display": "F7CR Tracker MK2"
+        },
+        "F7CS": {
+          "match": "ANVL_Hornet_F7CS",
+          "display": "F7CS Ghost"
+        },
+        "F7CS MK2": {
+          "match": "ANVL_Hornet_F7CS_Mk2",
+          "display": "F7CS Ghost MK2"
+        }
       }
     },
     "ANVL_HORNET_F7A": {
@@ -370,7 +391,10 @@
       "name": "Mpuv",
       "combine_variant_code": true,
       "variants": {
-        "1T": "ARGO_MPUV_1T",
+        "1T": {
+          "match": "ARGO_MPUV_1T",
+          "display": "Tractor"
+        },
         "BASE": "ARGO_MPUV",
         "TRANSPORT": "ARGO_MPUV_Transport"
       }
@@ -572,7 +596,10 @@
       "variants": {
         "Black": "DRAK_Dragonfly",
         "Pink": "DRAK_Dragonfly_Pink",
-        "Yellow": "DRAK_Dragonfly_Yellow"
+        "Yellow": {
+          "match": "DRAK_Dragonfly_Yellow",
+          "display": "Yellowjacket"
+        }
       }
     },
     "DRAK_GOLEM": {

@@ -74,6 +74,10 @@ func LoadShipGrouping() *ShipGrouping {
 		utils.Logger().Warn("Failed to parse ship grouping configuration", "error", err)
 		return emptyShipGrouping()
 	}
+	return parseShipGrouping(raw)
+}
+
+func parseShipGrouping(raw map[string]any) *ShipGrouping {
 	grouping := &ShipGrouping{
 		hulls:                  map[string]HullDefinition{},
 		canonicalVariants:      map[string]VariantAssignment{},
@@ -119,6 +123,9 @@ func LoadShipGrouping() *ShipGrouping {
 				displayVariantCode = string(variantCode)
 			}
 			normalized := normalizeVariant(rawVariantValue)
+			if normalized.DisplayVariantCode != "" {
+				displayVariantCode = normalized.DisplayVariantCode
+			}
 			assignment := VariantAssignment{
 				HullKey:            hullDef.HullKey,
 				Manufacturer:       hullDef.Manufacturer,
@@ -190,12 +197,13 @@ func toString(value any) string {
 }
 
 type normalizedVariantConfig struct {
-	MatchIDs       []string
-	ShipVariantIDs []string
-	VariantCodes   []lib.CanonicalVariantCode
-	Names          []string
-	Editions       []string
-	Configurations []VariantConfiguration
+	DisplayVariantCode string
+	MatchIDs           []string
+	ShipVariantIDs     []string
+	VariantCodes       []lib.CanonicalVariantCode
+	Names              []string
+	Editions           []string
+	Configurations     []VariantConfiguration
 }
 
 func normalizeVariant(input any) normalizedVariantConfig {
@@ -218,6 +226,12 @@ func normalizeVariant(input any) normalizedVariantConfig {
 			MatchIDs: match,
 		}
 	case map[string]any:
+		displayVariantCode := firstNonEmpty(
+			toString(value["display_variant_code"]),
+			toString(value["displayVariantCode"]),
+			toString(value["display"]),
+			toString(value["label"]),
+		)
 		matchIDs := collectStrings(value["match"], value["match_id"], value["id"], value["ids"], value["matches"])
 		if len(matchIDs) == 0 {
 			if configs, ok := value["configurations"].(map[string]any); ok && len(configs) > 0 {
@@ -289,12 +303,13 @@ func normalizeVariant(input any) normalizedVariantConfig {
 			}
 		}
 		return normalizedVariantConfig{
-			MatchIDs:       dedupeStrings(matchIDs),
-			ShipVariantIDs: dedupeStrings(shipVariantIDs),
-			VariantCodes:   variantCodes,
-			Names:          dedupeStrings(names),
-			Editions:       dedupeStrings(editions),
-			Configurations: configs,
+			DisplayVariantCode: strings.TrimSpace(displayVariantCode),
+			MatchIDs:           dedupeStrings(matchIDs),
+			ShipVariantIDs:     dedupeStrings(shipVariantIDs),
+			VariantCodes:       variantCodes,
+			Names:              dedupeStrings(names),
+			Editions:           dedupeStrings(editions),
+			Configurations:     configs,
 		}
 	default:
 		return normalizedVariantConfig{}

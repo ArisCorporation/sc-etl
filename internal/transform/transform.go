@@ -749,29 +749,17 @@ func ensureVariantBuilder(builders map[string]*variantBuilder, grouping *ShipGro
 		Refs:        newRefCollector(),
 	}
 	if grouping != nil {
-		if hull, ok := grouping.GetHull(hullKey); ok {
+		if assignment, ok := grouping.LookupVariant(hullKey, string(code)); ok {
+			builder.Name = variantAssignmentDisplayName(grouping, assignment)
+		} else if hull, ok := grouping.GetHull(hullKey); ok {
 			if hull.CombineVariantCode {
 				if strings.EqualFold(string(code), "BASE") {
 					builder.Name = lib.CanonicalVariantName(hull.Name, "BASE")
 				} else {
-					codeForDisplay := code
-					if assignment, ok := grouping.LookupVariant(hullKey, string(code)); ok {
-						if d := strings.TrimSpace(assignment.DisplayVariantCode); d != "" {
-							codeForDisplay = lib.CanonicalVariantCode(d)
-						}
-					}
-					builder.Name = lib.CanonicalVariantName(hull.Name, codeForDisplay)
+					builder.Name = lib.CanonicalVariantName(hull.Name, code)
 				}
 			} else {
-				displayName := ""
-				if assignment, ok := grouping.LookupVariant(hullKey, string(code)); ok {
-					displayName = strings.TrimSpace(assignment.DisplayVariantCode)
-				}
-				if displayName != "" {
-					builder.Name = displayName
-				} else {
-					builder.Name = strings.TrimSpace(strings.ToUpper(string(code)))
-				}
+				builder.Name = strings.TrimSpace(strings.ToUpper(string(code)))
 				if builder.Name == "" {
 					builder.Name = "BASE"
 				}
@@ -783,6 +771,42 @@ func ensureVariantBuilder(builders map[string]*variantBuilder, grouping *ShipGro
 	}
 	builders[canonical] = builder
 	return builder
+}
+
+func variantAssignmentDisplayName(grouping *ShipGrouping, assignment VariantAssignment) string {
+	if len(assignment.Names) > 0 {
+		if name := strings.TrimSpace(assignment.Names[0]); name != "" {
+			return name
+		}
+	}
+
+	hull, ok := grouping.GetHull(assignment.HullKey)
+	if !ok {
+		return ""
+	}
+
+	if hull.CombineVariantCode {
+		if strings.EqualFold(string(assignment.VariantCode), "BASE") {
+			return lib.CanonicalVariantName(hull.Name, "BASE")
+		}
+		codeForDisplay := assignment.VariantCode
+		if d := strings.TrimSpace(assignment.DisplayVariantCode); d != "" {
+			codeForDisplay = lib.CanonicalVariantCode(d)
+		}
+		return lib.CanonicalVariantName(hull.Name, codeForDisplay)
+	}
+
+	displayName := strings.TrimSpace(assignment.DisplayVariantCode)
+	if displayName != "" {
+		return displayName
+	}
+
+	displayName = strings.TrimSpace(strings.ToUpper(string(assignment.VariantCode)))
+	if displayName != "" {
+		return displayName
+	}
+
+	return "BASE"
 }
 
 func canonicalVariantID(hullKey string, code lib.CanonicalVariantCode) string {
@@ -1608,8 +1632,8 @@ func buildV2Bundle(ctx context.Context, channel model.Channel, version string, m
 			}
 			vb := ensureVariantBuilder(variantBuilders, grouping, assignment.HullKey, assignment.VariantCode)
 			if vb != nil {
-				if len(assignment.Names) > 0 && strings.TrimSpace(assignment.Names[0]) != "" {
-					vb.Name = assignment.Names[0]
+				if name := variantAssignmentDisplayName(grouping, assignment); name != "" {
+					vb.Name = name
 				}
 				vb.Refs.add(primaryRefSource, vb.ExternalID)
 			}

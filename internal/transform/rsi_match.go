@@ -27,7 +27,27 @@ type rsiMatrixMatcher struct {
 	entry        rsiMatrixEntry
 	manufacturer string
 	exactKeys    map[string]struct{}
+	rawTokens    map[string]struct{}
 	tokens       map[string]struct{}
+}
+
+var rsiManufacturerAliases = map[string]string{
+	"AEGIS":               "AEG",
+	"AEGS":                "AEG",
+	"ANVIL":               "ANVL",
+	"AOPOA":               "XNAA",
+	"CONSOLIDATED":        "CNOU",
+	"CONSOLIDATEDOUTLAND": "CNOU",
+	"CRUSADER":            "CRUS",
+	"DRAKE":               "DRAK",
+	"ESPERIA":             "ESPR",
+	"GREYCAT":             "GRIN",
+	"KRUGER":              "KRIG",
+	"MIRAI":               "MRAI",
+	"ORIGIN":              "ORIG",
+	"ROBERTS":             "RSI",
+	"TUMBRIL":             "TMBL",
+	"VANDUUL":             "VNCL",
 }
 
 func buildRSIMatrixMatchers(rows []rsiMatrixEntry) []rsiMatrixMatcher {
@@ -36,55 +56,47 @@ func buildRSIMatrixMatchers(rows []rsiMatrixEntry) []rsiMatrixMatcher {
 		if entry.ID <= 0 {
 			continue
 		}
+		values := rsiEntryLookupValues(entry)
 		exactKeys := map[string]struct{}{}
-		for _, key := range exactRSIEntryKeys(entry) {
+		for _, key := range exactLookupKeys(values...) {
 			exactKeys[key] = struct{}{}
 		}
-		tokens := lookupTokenSet(entry.Name)
-		if slug := matrixURLLeaf(entry.URL); slug != "" {
-			mergeTokenSets(tokens, lookupTokenSet(slug))
-		}
+		rawTokens := rawLookupTokenSet(values...)
+		tokens := lookupTokenSet(values...)
 		matchers = append(matchers, rsiMatrixMatcher{
 			entry:        entry,
 			manufacturer: normalizeManufacturerCode(entry.Manufacturer.Code),
 			exactKeys:    exactKeys,
+			rawTokens:    rawTokens,
 			tokens:       tokens,
 		})
 	}
 	return matchers
 }
 
-func exactRSIEntryKeys(entry rsiMatrixEntry) []string {
-	keys := []string{}
-	add := func(value string) {
-		if key := normalizeLookupPhrase(value); key != "" {
-			keys = append(keys, "phrase:"+key)
-		}
-		if key := normalizeLookupBag(value); key != "" {
-			keys = append(keys, "bag:"+key)
-		}
+func rsiEntryLookupValues(entry rsiMatrixEntry) []string {
+	values := []string{entry.Name}
+	manufacturer := strings.TrimSpace(entry.Manufacturer.Code)
+	if manufacturer != "" {
+		values = append(values, manufacturer+" "+entry.Name)
 	}
-	add(entry.Name)
-	if entry.Manufacturer.Code != "" {
-		add(entry.Manufacturer.Code + " " + entry.Name)
-	}
-	if slug := matrixURLLeaf(entry.URL); slug != "" {
-		add(slug)
-		if entry.Manufacturer.Code != "" {
-			add(entry.Manufacturer.Code + " " + slug)
+	for _, segment := range matrixURLLookupValues(entry.URL) {
+		values = append(values, segment)
+		if manufacturer != "" {
+			values = append(values, manufacturer+" "+segment)
 		}
 	}
-	return dedupeOrderedStrings(keys)
+	return dedupeOrderedStrings(values)
 }
 
 func matchRSIMatrixEntry(variant *variantBuilder, hulls map[string]*hullBuilder, matchers []rsiMatrixMatcher) (rsiMatrixEntry, bool) {
 	if variant == nil || len(matchers) == 0 {
 		return rsiMatrixEntry{}, false
 	}
-	manufacturer := variantManufacturerCode(variant, hulls)
+	manufacturers := variantManufacturerCodes(variant, hulls)
 	for _, candidate := range exactRSIVariantKeys(variant, hulls) {
 		for _, matcher := range matchers {
-			if !manufacturerCodesCompatible(manufacturer, matcher.manufacturer) {
+			if !manufacturerCodeSetCompatible(manufacturers, matcher.manufacturer) {
 				continue
 			}
 			if _, ok := matcher.exactKeys[candidate]; ok {
@@ -93,16 +105,24 @@ func matchRSIMatrixEntry(variant *variantBuilder, hulls map[string]*hullBuilder,
 		}
 	}
 
+	if variantIsBase(variant) {
+		return rsiMatrixEntry{}, false
+	}
+
 	required := variantRequiredRSITokens(variant, hulls)
 	if len(required) == 0 {
 		return rsiMatrixEntry{}, false
 	}
+	requiredExact := variantRequiredExactRSITokens(variant)
 
 	bestIdx := -1
 	bestExtras := 0
 	bestTokenCount := 0
 	for idx, matcher := range matchers {
-		if !manufacturerCodesCompatible(manufacturer, matcher.manufacturer) {
+		if !manufacturerCodeSetCompatible(manufacturers, matcher.manufacturer) {
+			continue
+		}
+		if len(requiredExact) > 0 && !tokenSubset(requiredExact, matcher.rawTokens) {
 			continue
 		}
 		if !tokenSubset(required, matcher.tokens) {
@@ -137,10 +157,11 @@ func exactRSIVariantKeys(variant *variantBuilder, hulls map[string]*hullBuilder)
 	}
 
 	hullName := variantHullName(variant, hulls)
-	manufacturer := variantManufacturerCode(variant, hulls)
+	manufacturer := variantPrimaryManufacturerCode(variant, hulls)
 	name := strings.TrimSpace(variant.Name)
 	code := strings.TrimSpace(variant.VariantCode)
 	codeValue := strings.ReplaceAll(code, "_", " ")
+	isBase := variantIsBase(variant)
 
 	if name != "" {
 		add(name)
@@ -159,9 +180,11 @@ func exactRSIVariantKeys(variant *variantBuilder, hulls map[string]*hullBuilder)
 	if variant.ExternalID != "" {
 		add(variant.ExternalID)
 	}
-	add(hullName)
-	if manufacturer != "" {
-		add(manufacturer + " " + hullName)
+	if isBase {
+		add(hullName)
+		if manufacturer != "" {
+			add(manufacturer + " " + hullName)
+		}
 	}
 	return dedupeOrderedStrings(keys)
 }
@@ -177,6 +200,21 @@ func variantRequiredRSITokens(variant *variantBuilder, hulls map[string]*hullBui
 	return set
 }
 
+func variantRequiredExactRSITokens(variant *variantBuilder) map[string]struct{} {
+	if variant == nil || variantIsBase(variant) {
+		return map[string]struct{}{}
+	}
+	return rawLookupTokenSet(strings.ReplaceAll(strings.TrimSpace(variant.VariantCode), "_", " "))
+}
+
+func variantIsBase(variant *variantBuilder) bool {
+	if variant == nil {
+		return true
+	}
+	code := strings.TrimSpace(variant.VariantCode)
+	return code == "" || strings.EqualFold(code, "BASE")
+}
+
 func variantHullName(variant *variantBuilder, hulls map[string]*hullBuilder) string {
 	if variant == nil {
 		return ""
@@ -189,14 +227,65 @@ func variantHullName(variant *variantBuilder, hulls map[string]*hullBuilder) str
 	return variant.HullKey
 }
 
-func variantManufacturerCode(variant *variantBuilder, hulls map[string]*hullBuilder) string {
-	if variant == nil || hulls == nil {
+func variantPrimaryManufacturerCode(variant *variantBuilder, hulls map[string]*hullBuilder) string {
+	codes := variantManufacturerCodes(variant, hulls)
+	if len(codes) == 0 {
 		return ""
 	}
-	if hb := hulls[variant.HullKey]; hb != nil {
-		return normalizeManufacturerCode(hb.CompanyCode)
+	best := ""
+	for code := range codes {
+		if best == "" || code < best {
+			best = code
+		}
 	}
-	return ""
+	return best
+}
+
+func variantManufacturerCodes(variant *variantBuilder, hulls map[string]*hullBuilder) map[string]struct{} {
+	codes := map[string]struct{}{}
+	if variant == nil {
+		return codes
+	}
+	if hulls != nil {
+		if hb := hulls[variant.HullKey]; hb != nil {
+			if code := normalizeManufacturerCode(hb.CompanyCode); code != "" {
+				codes[code] = struct{}{}
+			}
+			collectManufacturerCodesFromRefs(codes, hb.Refs)
+		}
+	}
+	collectManufacturerCodesFromRefs(codes, variant.Refs)
+	return codes
+}
+
+func collectManufacturerCodesFromRefs(target map[string]struct{}, refs refCollector) {
+	if len(refs) == 0 {
+		return
+	}
+	for source, ids := range refs {
+		switch source {
+		case "raw:ships.ClassName", "raw:ships.Name", "raw:ship_variants.name":
+		default:
+			continue
+		}
+		for id := range ids {
+			for _, code := range manufacturerCodesFromLookupValue(id) {
+				target[code] = struct{}{}
+			}
+		}
+	}
+}
+
+func manufacturerCodesFromLookupValue(value string) []string {
+	parts := lookupParts(value)
+	if len(parts) == 0 {
+		return nil
+	}
+	codes := []string{}
+	if code := normalizeManufacturerCode(parts[0]); code != "" {
+		codes = append(codes, code)
+	}
+	return dedupeOrderedStrings(codes)
 }
 
 func normalizeLookupPhrase(value string) string {
@@ -216,20 +305,43 @@ func normalizeLookupBag(value string) string {
 	return strings.Join(dedupeOrderedStrings(parts), "_")
 }
 
-func lookupTokenSet(values ...string) map[string]struct{} {
+func exactLookupKeys(values ...string) []string {
+	keys := []string{}
+	add := func(value string) {
+		if key := normalizeLookupPhrase(value); key != "" {
+			keys = append(keys, "phrase:"+key)
+		}
+		if key := normalizeLookupBag(value); key != "" {
+			keys = append(keys, "bag:"+key)
+		}
+	}
+	for _, value := range values {
+		add(value)
+	}
+	return dedupeOrderedStrings(keys)
+}
+
+func rawLookupTokenSet(values ...string) map[string]struct{} {
 	set := map[string]struct{}{}
 	for _, value := range values {
 		parts := lookupParts(value)
 		for _, part := range parts {
 			set[part] = struct{}{}
-			for _, expanded := range expandCompactLookupToken(part) {
-				set[expanded] = struct{}{}
-			}
 		}
 		for idx := 0; idx+1 < len(parts); idx++ {
 			if combined := combineLookupParts(parts[idx], parts[idx+1]); combined != "" {
 				set[combined] = struct{}{}
 			}
+		}
+	}
+	return set
+}
+
+func lookupTokenSet(values ...string) map[string]struct{} {
+	set := rawLookupTokenSet(values...)
+	for token := range rawLookupTokenSet(values...) {
+		for _, expanded := range expandCompactLookupToken(token) {
+			set[expanded] = struct{}{}
 		}
 	}
 	return set
@@ -354,6 +466,33 @@ func matrixURLLeaf(value string) string {
 	return parts[len(parts)-1]
 }
 
+func matrixURLLookupValues(value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	parts := strings.Split(strings.Trim(value, "/"), "/")
+	values := make([]string, 0, len(parts)*2)
+	significant := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" || strings.EqualFold(part, "pledge") || strings.EqualFold(part, "ships") {
+			continue
+		}
+		significant = append(significant, part)
+	}
+	for idx, part := range significant {
+		if idx == len(significant)-1 {
+			values = append(values, part)
+		}
+		slugParts := strings.Split(part, "-")
+		if len(slugParts) > 1 {
+			values = append(values, strings.Join(slugParts[1:], "-"))
+		}
+	}
+	return dedupeOrderedStrings(values)
+}
+
 func mergeTokenSets(target, source map[string]struct{}) {
 	for token := range source {
 		target[token] = struct{}{}
@@ -384,7 +523,14 @@ func normalizeManufacturerCode(value string) string {
 	if value == "" {
 		return ""
 	}
-	return strings.TrimSuffix(value, "S")
+	if alias, ok := rsiManufacturerAliases[value]; ok {
+		value = alias
+	}
+	value = strings.TrimSuffix(value, "S")
+	if alias, ok := rsiManufacturerAliases[value]; ok {
+		value = alias
+	}
+	return value
 }
 
 func manufacturerCodesCompatible(lhs, rhs string) bool {
@@ -395,6 +541,18 @@ func manufacturerCodesCompatible(lhs, rhs string) bool {
 		return true
 	}
 	return strings.HasPrefix(lhs, rhs) || strings.HasPrefix(rhs, lhs)
+}
+
+func manufacturerCodeSetCompatible(lhs map[string]struct{}, rhs string) bool {
+	if rhs == "" || len(lhs) == 0 {
+		return true
+	}
+	for code := range lhs {
+		if manufacturerCodesCompatible(code, rhs) {
+			return true
+		}
+	}
+	return false
 }
 
 func dedupeOrderedStrings(values []string) []string {

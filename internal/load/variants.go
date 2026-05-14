@@ -87,7 +87,18 @@ func (b *builder) syncShipVariants(variants []model.NormalizedShipVariantV2, sta
 			thumbnail = preferPtrString(variant.Thumbnail, "")
 		}
 
-		if rsiID := extractRSIID(externalRefs); rsiID != "" {
+		rsiID := extractRSIID(externalRefs)
+		if state != nil && len(b.rsiMedia) > 0 && thumbnailURL != "" {
+			if rsiID == "" {
+				thumbnail = ""
+				thumbnailURL = ""
+			} else if media, ok := b.rsiMedia[rsiID]; !ok || strings.TrimSpace(media.Thumbnail) == "" {
+				thumbnail = ""
+				thumbnailURL = ""
+			}
+		}
+
+		if rsiID != "" {
 			if media, ok := b.rsiMedia[rsiID]; ok && media.Thumbnail != "" && (thumbnail == "" || thumbnailURL != media.Thumbnail) {
 				if fileID, err := b.importFile(media.Thumbnail); err != nil {
 					utils.Logger().Warn("Failed to import RSI thumbnail", "variant", variant.ExternalID, "url", media.Thumbnail, "error", err)
