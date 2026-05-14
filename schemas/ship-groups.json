@@ -1312,6 +1312,30 @@
       "variants": {
         "BASE": "ANVL_Liberator"
       }
+    },
+    "ORIG_M80": {
+      "manufacturer": "ORIG",
+      "name": "M80",
+      "combine_variant_code": true,
+      "variants": {
+        "BASE": "ORIG_M80"
+      }
+    },
+    "MISC_STARLITE": {
+      "manufacturer": "MISC",
+      "name": "Starlite",
+      "combine_variant_code": true,
+      "variants": {
+        "BASE": "MISC_Starlite"
+      }
+    },
+    "DRAK_PITBULL": {
+      "manufacturer": "DRAK",
+      "name": "Pitbull",
+      "combine_variant_code": true,
+      "variants": {
+        "BASE": "DRAK_Pitbull"
+      }
     }
   }
 }
